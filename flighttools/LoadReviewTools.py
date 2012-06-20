@@ -15,6 +15,7 @@ Process Matlab load review output files. This script is meant for two purposes:
    python LoadReviewTools.py --Propschedule=MAY0712A --Reviewschdule=MAY1412A \
    --OutputThermalReport
 
+NOTE: This is meant to be run from within the working directory
 '''
 
 import sys
@@ -55,23 +56,30 @@ class LoadReviewTools(object):
                                             'PM1THV1T Settle', 'PM2THV1T',
                                             'PM2THV1T Settle'],
                                'title':'Spacecraft: MUPS Valves'}}
-
+        
+        self.propnames = ['TEPHIN', '3TRMTRAT', 'PM1THV1T', 'PM2THV1T',
+                          '1PDEAAT','1PIN1AT', 'TCYLAFT6', 'TMZP_MY',
+                          'TCYLFMZM', 'TFSSBKT1', '1DPAMZT', 'PFTANK2T',
+                          'PF0TANK2T', 'SimPos', 'chips', 'FEP_Count',
+                          'CCD_Count', 'Vid_Board', 'Clocking']
+        
         self.plotorder = ['minusz', 'tank', 'mups', 'psmc', 'dpa']
 
         self.propschedule = propschedule
         self.reviewschedule = reviewschedule
 
         if reviewschedule == None:
-            writePropData(self.propschedule)
+            self.writePropData()
         else:
-            writeChecklistData(self.propschedule,self.reviewschedule)
+            self.writeChecklistData()
 
 
-    def __readfile(filename,subheaderinfo):
+    def _readfile(self, filename, subheaderinfo):
 
         # Headerinfo should be a sub-dict of the original header info,
         # including only the information for the current model
-            
+        
+        fin = open(filename,'rb')    
         datalines = fin.readlines()
         fin.close()
 
@@ -79,7 +87,7 @@ class LoadReviewTools(object):
 
         data = {}
 
-        for num,name in enumerate(subheaderinfo['names']):
+        for num, name in enumerate(subheaderinfo['names']):
             if name.lower() == 'time':
                 data.update(dict({name:np.array([line.strip().split()[num]
                                                 for line in datalines])}))
@@ -91,7 +99,7 @@ class LoadReviewTools(object):
         return data
 
 
-    def __writeReportData(outfile,propdata,reviewdata,names,modelname):
+    def _writeReportData(self, outfile, propdata, reviewdata, names, modelname):
 
         # The 'names' list should not include time
 
@@ -131,58 +139,53 @@ class LoadReviewTools(object):
         return outfile
 
 
-    def writeChecklistData(propschedule,reviewschedule):
+    def writeChecklistData(self):
 
-        schedulename = os.path.basename(reviewschedule)
-        outfile = file('%s_Thermal_Load_Review_Report.txt'%schedulename,'w')
+        reviewfilename = self.reviewschedule + '_Thermal_Load_Review_Report.txt'
+        outfile = file(reviewfilename, 'w')
 
-        for name in plotorder:
+        for name in self.plotorder:
 
-            filename = propschedule+fileparts[name]
-            propdata = __readfile(filename,headerinfo[name])
+            filename = self.propschedule + self.fileparts[name]
+            propdata = self._readfile(filename, self.headerinfo[name])
 
-            filename = reviewschedule+fileparts[name]
-            reviewdata = __readfile(filename,headerinfo[name])
+            filename = self.reviewschedule + self.fileparts[name]
+            reviewdata = self._readfile(filename, self.headerinfo[name])
 
-            datanames = headerinfo[name]['names']
-            datanames.pop(0)
+            datanames = self.headerinfo[name]['names']
+            datanames.pop(0) # remove time
 
-            __writeReportData(outfile,propdata,reviewdata,datanames,
-                              headerinfo[name]['title'])
-            __writeReportData(sys.stdout,propdata,reviewdata,datanames,
-                              headerinfo[name]['title'])
+            self._writeReportData(outfile, propdata, reviewdata, datanames,
+                                  self.headerinfo[name]['title'])
+            self._writeReportData(sys.stdout, propdata, reviewdata, datanames,
+                                  self.headerinfo[name]['title'])
 
         outfile.close()
         print('Wrote thermal report data to '\
-              '%s_Thermal_Load_Review_Report.txt\n'%reviewschedulename)
+              '%s_Thermal_Load_Review_Report.txt\n'%reviewfilename)
         
 
-    def writePropData(propschedule):
+    def writePropData(self):
 
+        propfilename = self.propschedule + '_Ending_Configuration.txt'
+        outfile = file(propfilename, 'w')
 
-        propnames = ['TEPHIN', '3TRMTRAT', 'PM1THV1T', 'PM2THV1T', '1PDEAAT',
-                     '1PIN1AT', 'TCYLAFT6', 'TMZP_MY', 'TCYLFMZM', 'TFSSBKT1',
-                     '1DPAMZT', 'PFTANK2T', 'PF0TANK2T', 'SimPos', 'chips',
-                     'FEP_Count', 'CCD_Count', 'Vid_Board', 'Clocking']
+        for num,name in enumerate(self.plotorder):
+            filename = self.propschedule + self.fileparts[name]
+            propdata = self._readfile(filename, self.headerinfo[name])
 
-        outfile = file(propschedule + '_Ending_Configuration.txt','w')
-
-        for num,name in enumerate(plotorder):
-            filename = propschedule+fileparts[name]
-            propdata = __readfile(filename,headerinfo[name])
-
-            datanames = headerinfo[name]['names'][1:]
+            datanames = self.headerinfo[name]['names'][1:]
 
             if num == 0:
                 outfile.write('Time of Validity:  %s\n'%(propdata['Time'][-1]))
 
             for loc in datanames:
-                if loc in propnames:
+                if loc in self.propnames:
                     outfile.write(' %s : %f\n'%(loc, propdata[loc][-1]))
 
 
         outfile.close()
-        print('Wrote propagation ending data to %s'%outfile)
+        print('Wrote propagation ending data to %s'%propfilename)
 
 
 if __name__ == "__main__":
