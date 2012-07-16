@@ -12,7 +12,7 @@ Process Matlab load review output files. This script is meant for two purposes:
    thermal loadreview report listing all the relevant temperature data. This
    is done with this type of syntax:
 
-   python LoadReviewTools.py --Propschedule=MAY0712A --Reviewschdule=MAY1412A \
+   python LoadReviewTools.py --Propschedule=MAY0712A --Reviewschedule=MAY1412A \
    --OutputThermalReport
 
 NOTE: This is meant to be run from within the working directory
