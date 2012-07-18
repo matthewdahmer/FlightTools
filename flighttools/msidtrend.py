@@ -114,17 +114,9 @@ class MSIDTrend(object):
         dataset
         """
         
-        try:
-            telem = fetch_eng.Msid(self.msid, self.tstart, self.tstop,
-                                   stat='daily')
+        telem = fetch_eng.Msid(self.msid, self.tstart, self.tstop, 
+                               stat='daily')
 
-        except ValueError:
-            # This part may not be necessary as the fetch function may now
-            # automatically try this.
-            telem = fetch_eng.Msid('DP_' + self.msid, self.tstart,
-                                   self.tstop, stat='daily')
-
-     
         # Calculate the mean time value for each 30 day period going backwards.
         #
         # Monthly values are calculated going backwards because it is more
@@ -166,9 +158,9 @@ class MSIDTrend(object):
         standard deviation of the data about this curve fit.
 
         The number of months used is specified using the trendmonths input
-        arguement.
+        argument.
         """
-        
+
         # Select the last N months of data
         datarange = data[-self.trendmonths:]
         timerange = self.telem.monthlytimes[-self.trendmonths:]
@@ -274,7 +266,12 @@ class MSIDTrend(object):
                              self.numstddev) 
 
             # Calculate the date at which the modified threshold is reached
-            crossdate = ct.DateTime((threshold - p[1]) / p[0]).date
+            seconds = (threshold - p[1]) / p[0]
+            if seconds < ct.DateTime('3000:001:00:00:00').secs:
+                crossdate = ct.DateTime(seconds).date
+
+            else:
+                crossdate = '3000:001:00:00:00'
 
             return crossdate
 
@@ -282,6 +279,7 @@ class MSIDTrend(object):
         if thresholdtype == 'warning_high' or thresholdtype == 'caution_high':
             # If an upper limit threshold is used, then fit the line to the
             # monthly maximum data.
+
             p, stddev = self.getPolyfitLine(self.telem.monthlymaxes)
             
             # If an upper limit threshold is used, then there is no cross date
@@ -289,26 +287,31 @@ class MSIDTrend(object):
             if p[0] > 0:
                 
                 crossdate = getdate(self, p, stddev, thresholdtype)
-
+                
             else:
 
                 crossdate = None
+                print('Slope for %s is %e, so no %s limit cross'%
+                      (self.msid, p[0], thresholdtype))
 
 
         if thresholdtype == 'warning_low' or thresholdtype == 'caution_low':
             # If a lower limit threshold is used, then fit the line to the
             # monthly minimum data.
+
             p, stddev = self.getPolyfitLine(self.telem.monthlymins)
-            
+
             # If a lower limit threshold is used, then there is no cross date
             # if the slope is positive.
-            if p[0] < 0:
+            if p[0] < 0: 
                 
                 crossdate = getdate(self, p, stddev, thresholdtype)
 
             else:
 
                 crossdate = None        
+                print('Slope for %s is %e, so no %s limit cross'%
+                      (self.msid, p[0], thresholdtype))
 
         return crossdate
                                  
