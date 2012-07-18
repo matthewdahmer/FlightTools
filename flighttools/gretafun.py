@@ -108,7 +108,11 @@ def getGLIMMONLimits(MSID, glimmon=None):
     glimits = {}
     
     if MSID in glimmon.keys():
-        gdefault = glimmon[MSID]['default']
+        if glimmon[MSID].has_key('default'):
+            gdefault = glimmon[MSID]['default']
+        else:
+            gdefault = 0
+
         glimits['warning_low'] = glimmon[MSID][gdefault]['warning_low']
         glimits['caution_low'] = glimmon[MSID][gdefault]['caution_low']
         glimits['caution_high'] = glimmon[MSID][gdefault]['caution_high']
@@ -156,36 +160,40 @@ def getSafetyLimits(telem):
         database
         """
 
-        # Get the TDB default set num, this is the only limit set that is
-        # modified.
-        tdbdefault = telem.tdb.limit_default_set_num
-
         safetylimits = {}
-        limits = telem.tdb.Tlmt
-        
-        if limits:
 
-            if len(telem.tdb.Tlmt) == 1:
-                # In this case there is only one limit set
-                safetylimits['warning_low'] = limits['WARNING_LOW']
-                safetylimits['caution_low'] = limits['CAUTION_LOW']
-                safetylimits['caution_high'] = limits['CAUTION_HIGH']
-                safetylimits['warning_high'] = limits['WARNING_HIGH']
+        try:
+            # Get the TDB default set num, this is the only limit set that is
+            # modified.
+            tdbdefault = telem.tdb.limit_default_set_num
 
-            else:
-                # Then assume there is more than one limit set and use the
-                # default set.
-                mask = telem.tdb.Tlmt['LIMIT_SET_NUM'].data == tdbdefault
+            limits = telem.tdb.Tlmt
+            
+            if limits:
 
-                safetylimits['warning_low'] = \
-                                            limits['WARNING_LOW'].data[mask][0]
-                safetylimits['caution_low'] = \
-                                            limits['CAUTION_LOW'].data[mask][0]
-                safetylimits['caution_high'] = \
-                                            limits['CAUTION_HIGH'].data[mask][0]
-                safetylimits['warning_high'] = \
-                                            limits['WARNING_HIGH'].data[mask][0]
-                
+                if len(telem.tdb.Tlmt) == 1:
+                    #In this case there is only one limit set
+                    safetylimits['warning_low'] = limits['WARNING_LOW']
+                    safetylimits['caution_low'] = limits['CAUTION_LOW']
+                    safetylimits['caution_high'] = limits['CAUTION_HIGH']
+                    safetylimits['warning_high'] = limits['WARNING_HIGH']
+
+                else:
+                    # Then assume there is more than one limit set and use the
+                    # default set.
+                    mask = telem.tdb.Tlmt['LIMIT_SET_NUM'].data == tdbdefault
+
+                    safetylimits['warning_low'] = \
+                                        limits['WARNING_LOW'].data[mask][0]
+                    safetylimits['caution_low'] = \
+                                        limits['CAUTION_LOW'].data[mask][0]
+                    safetylimits['caution_high'] = \
+                                        limits['CAUTION_HIGH'].data[mask][0]
+                    safetylimits['warning_high'] = \
+                                        limits['WARNING_HIGH'].data[mask][0]
+        except KeyError as e:
+            print('%s does not have limits in Engineering Archive TDB'%telem.MSID)
+
         return safetylimits
 
 
@@ -204,26 +212,23 @@ def getSafetyLimits(telem):
     
 
     # Generate GLIMMON tests for use later
+    msid_has_glimmon_limits = False # Initialize to False
     msid_in_glimmon = MSID in glimmon.keys()
+    if msid_in_glimmon:
+        if glimmon[MSID].has_key(0):
+            if glimmon[MSID][0].has_key('type'):
+                msid_has_glimmon_limits = glimmon[MSID][0]['type'] == 'limit'
 
-
-    if msid_in_glimmon and glimmon[MSID]:
-        msid_has_glimmon_limits = glimmon[MSID][0]['type'] == 'limit'
-    else:
-        msid_has_glimmon_limits = False
-                      
 
     # If there are no limits in the TDB but there are in GLIMMON, use the
     # GLIMMON limits
     if not safetylimits and  msid_in_glimmon and msid_has_glimmon_limits:
-
         safetylimits = getGLIMMONLimits(MSID, glimmon)
 
 
     # If there are limits in both GLIMMON and the TDB use the set that
     # is most permissive.
     if safetylimits and  msid_in_glimmon and msid_has_glimmon_limits:
-
         glimits = getGLIMMONLimits(MSID, glimmon)
 
         if glimits['warning_low'] < safetylimits['warning_low']:
