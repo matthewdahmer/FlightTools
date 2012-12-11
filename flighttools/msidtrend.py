@@ -90,7 +90,7 @@ class MSIDTrend(object):
     """
     
     def __init__(self, msid, tstart='2000:001:00:00:00', tstop=None,
-                 trendmonths = 24, numstddev=2):
+                 trendmonths = 24, numstddev=2, removeoutliers=True):
 
         self.msid = msid
         self.tstart = ct.DateTime(tstart).date
@@ -102,9 +102,20 @@ class MSIDTrend(object):
             
         self.trendmonths = trendmonths
         self.numstddev = numstddev
+        self.removeoutliers = removeoutliers
         self.telem = self._getMonthlyTelemetry()
         self.safetylimits = gretafun.getSafetyLimits(self.telem)
+
+        glims = gretafun.getGLIMMONLimits(self.telem)
+        if glims:
+            self.trendinglimits = glims
+        else:
+            self.trendinglimits = self.safetylimits
         
+
+    def filteroutliers(self, datavals):
+        keep = np.abs(datavals - np.mean(datavals)) <= np.std(datavals)*5
+        return keep
 
     def _getMonthlyTelemetry(self):
         """ Retrieve the telemetry and calculate the 30 day stats
@@ -113,9 +124,30 @@ class MSIDTrend(object):
         to be a remainder of daily datapoints not used at the begining of the
         dataset
         """
+
+        def returnmonthlyvals(datavals, numdays, keepmask):
+            datavals = datavals[keepmask]
+            returnvals = [np.m]
+
         
         telem = fetch_eng.Msid(self.msid, self.tstart, self.tstop, 
                                stat='daily')
+
+        if self.removeoutliers:
+            keepmean = self.filteroutliers(telem.means)
+            keepmax = self.filteroutliers(telem.maxes)
+            keepmin = self.filteroutliers(telem.mins)
+
+        else:
+            keepmean = np.array([True]*len(telem.means))
+            keepmax = np.array([True]*len(telem.maxes))
+            keepmin = np.array([True]*len(telem.mins))
+
+        # Save this for future access outside of this function, you need to 
+        # merge the keep arrays since they all share a common time array.
+        keep = keepmean & keepmax & keepmin
+        telem.keep = keep
+
 
         # Calculate the mean time value for each 30 day period going backwards.
         #
@@ -129,22 +161,22 @@ class MSIDTrend(object):
         #
         # Data is reported in chronological order
         #
-        days = len(telem.times)
-        telem.monthlytimes = [np.mean(telem.times[n:n + 30]) for n in
+        days = len(telem.times[keep])
+        telem.monthlytimes = [np.mean(telem.times[keep][n:n + 30]) for n in
                               range(days - 30, 0, -30)]
         telem.monthlytimes.reverse()
         
-        telem.monthlymaxes = [np.max(telem.maxes[n:n + 30]) for n in
+        telem.monthlymaxes = [np.max(telem.maxes[keep][n:n + 30]) for n in
                               range(days - 30, 0, -30)]
         telem.monthlymaxes.reverse()
         
-        telem.monthlymins = [np.min(telem.mins[n:n + 30]) for n in
+        telem.monthlymins = [np.min(telem.mins[keep][n:n + 30]) for n in
                               range(days - 30, 0, -30)]
         telem.monthlymins.reverse()
 
-        telem.monthlymeans = [np.mean(telem.means[n:n + 30]) for n in
-                              range(days - 30, 0, -30)]
-        telem.monthlymeans.reverse()        
+        telem.monthlymeans = [np.mean(np.double(telem.means[keep][n:n + 30])) 
+                              for n in range(days - 30, 0, -30)]
+        telem.monthlymeans.reverse()       
 
         return telem
 
@@ -216,7 +248,7 @@ class MSIDTrend(object):
         return np.polyval(p, date)
 
     
-    def getLimitIntercept(self, thresholdtype):
+    def getLimitIntercept(self, thresholdtype, limittype='safety'):
         """ Return the date when the data is expected to reach a limit.
         
         Valid values for thresholdtype are:
@@ -231,7 +263,7 @@ class MSIDTrend(object):
         thresholdtype = thresholdtype.lower()
 
 
-        def getdate(self, p, stddev, thresholdtype):
+        def getdate(self, p, stddev, thresholdtype, limittype):
             """ Return the date when the specified threshold is reached.
 
             p and stddev are the linear curve fit parameters and standard
@@ -243,10 +275,14 @@ class MSIDTrend(object):
                 caution_high
                 warning_high
 
-            There are two ways one can use a safety factor, one is to modify
-            the threshold, the other is to modify the linear curve fit. In
-            this case the threshold is modified by either subtracting or adding
-            a multiple of the standard deviation depending on the type of
+            limittype has two valid input strings:
+                safety
+                trending
+
+            There are two ways one can incorporate a safety factor, one is to
+            modify the threshold, the other is to modify the linear curve fit.
+            In this case the threshold is modified by either subtracting or
+            adding a multiple of the standard deviation depending on the type of
             threshold the user is interested in.
 
             If there is a time when the threshold is reached, then a date
@@ -256,15 +292,25 @@ class MSIDTrend(object):
             """
 
             # Get the threshold value and include the appropriate safety factor
-            if thresholdtype == 'warning_high' or \
-               thresholdtype == 'caution_high':
-                
-                threshold = (self.safetylimits[thresholdtype] - stddev *
-                             self.numstddev)
-            else:
-                threshold = (self.safetylimits[thresholdtype] + stddev *
-                             self.numstddev) 
+            if limittype.lower() == 'trending':
+                if thresholdtype == 'warning_high' or \
+                   thresholdtype == 'caution_high':
 
+                    threshold = (self.trendinglimits[thresholdtype] - stddev *
+                                 self.numstddev)
+                else:
+                    threshold = (self.trendinglimits[thresholdtype] + stddev *
+                             self.numstddev) 
+            else:
+                if thresholdtype == 'warning_high' or \
+                   thresholdtype == 'caution_high':
+
+                    threshold = (self.safetylimits[thresholdtype] - stddev *
+                                 self.numstddev)
+                else:
+                    threshold = (self.safetylimits[thresholdtype] + stddev *
+                             self.numstddev)
+                
             # Calculate the date at which the modified threshold is reached
             seconds = (threshold - p[1]) / p[0]
             if seconds < ct.DateTime('3000:001:00:00:00').secs:
@@ -285,8 +331,8 @@ class MSIDTrend(object):
             # If an upper limit threshold is used, then there is no cross date
             # if the slope is negative.
             if p[0] > 0:
-                
-                crossdate = getdate(self, p, stddev, thresholdtype)
+
+                crossdate = getdate(self, p, stddev, thresholdtype, limittype)
                 
             else:
 
@@ -305,7 +351,7 @@ class MSIDTrend(object):
             # if the slope is positive.
             if p[0] < 0: 
                 
-                crossdate = getdate(self, p, stddev, thresholdtype)
+                crossdate = getdate(self, p, stddev, thresholdtype, limittype)
 
             else:
 

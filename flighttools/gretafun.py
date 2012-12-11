@@ -10,34 +10,6 @@ import Chandra.Time as ct
 
 
 
-
-def runDec(time1, time2, outfile, decfile, envfile):
-    '''runDec(t1.date, t2.date, "junk.txt", decfile, envfile)
-    '''
-    
-    def readENV(envfile):
-        fid = open(envfile,'r')
-        env = fid.readlines()
-        fid.close()
-        envvar = {}
-        for line in env:
-            pair = line.strip().split('=',1)
-            envvar[pair[0]]=pair[1]
-    return envvar
-
-    
-    t1 = (time1[:4] + time1[5:8] + '.' + time1[9:11] + time1[12:14]
-          + time1[15:17] + time1[18:21])
-    t2 = (time2[:4] + time2[5:8] + '.' + time2[9:11] + time2[12:14]
-          + time2[15:17] + time2[18:21])
-
-    decomcommand = ('decom98 -d ' + decfile + ' -m 3 -f ztlm_autoselect@' + 
-                    str(t1) + '-' + str(t2) + ' -a ' + outfile)
-    print('running:\n  %s\n'%decomcommand)
-    
-    d = sp.call(decomcommand, shell=True, env=envvar)
-
-
     
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
@@ -191,8 +163,13 @@ def getSafetyLimits(telem):
                                         limits['CAUTION_HIGH'].data[mask][0]
                     safetylimits['warning_high'] = \
                                         limits['WARNING_HIGH'].data[mask][0]
-        except KeyError as e:
+        except AttributeError as e:
+            print('%s Attribute Error: %S'%(telem.MSID, str(e)))
+            safetylimits = {}
+
+        except KeyError:
             print('%s does not have limits in Engineering Archive TDB'%telem.MSID)
+            safetylimits = {}
 
         return safetylimits
 
@@ -258,7 +235,7 @@ def parsedecplot(decfile):
     grab text display data.
     '''
 
-    def finddecstring(pattern,string,rtype='string',split=False):
+    def finddecstring(pattern, string, rtype='string', split=False):
         '''Search a single line in a GRETA dec file for plotting
         information.
 
@@ -272,10 +249,15 @@ def parsedecplot(decfile):
         rtype = str(rtype).lower()
         p1 = re.compile('^' + pattern + '\s+(.*)$', re.MULTILINE)
         r = p1.search(string)
-        if not isinstance(r,type(None)):
+        if not isinstance(r, type(None)):
             rval = r.group(1)
             if split:
                 rval = rval.split()
+            if rtype == 'string':
+                if split:
+                    rval = [val.strip() for val in rval]
+                else:
+                    rval = rval.strip()
             if rtype=='float':
                 if split:
                     rval = [float(n) for n in rval]
@@ -332,7 +314,7 @@ def parsedecplot(decfile):
             tnum = int(re.match('\s+(\d+)[.\n]*', tracedef).group(1))
             traces[tnum] = {}
             traces[tnum]['TINDEX'] = tnum
-            traces[tnum]['TMSID'] = finddecstring('TMSID', tracedef).strip()
+            traces[tnum]['TMSID'] = finddecstring('TMSID', tracedef)
             traces[tnum]['TNAME'] = finddecstring('TNAME', tracedef)
             traces[tnum]['TCOLOR'] = finddecstring('TCOLOR', tracedef)
             traces[tnum]['TCALC'] = finddecstring('TCALC', tracedef)
@@ -349,7 +331,7 @@ def parsedecplot(decfile):
                 tbnum = int(tbnum.group(1))
                 tbtraces[tbnum] = {}
                 tbtraces[tbnum]['TBINDEX'] = tbnum
-                tbtraces[tbnum]['TMSID'] = finddecstring('TMSID', tbtracedef).strip()
+                tbtraces[tbnum]['TMSID'] = finddecstring('TMSID', tbtracedef)
                 tbtraces[tbnum]['TNAME'] = finddecstring('TNAME', tbtracedef)
                 tbtraces[tbnum]['TCOLOR'] = finddecstring('TCOLOR', tbtracedef)
             plots[num]['tbtraces'] = tbtraces
@@ -358,3 +340,141 @@ def parsedecplot(decfile):
 
 
     return decplots
+
+
+def readxlist(filename, data=None):
+
+    # there's probably a faster way to do this with recarrays
+
+    fid = file(filename,'r')
+    headers = fid.readline().split()
+    
+    if not data:
+        data = {}
+
+    for header in headers:
+        data[header.lower()] = []
+    
+
+    for line in fid:
+        vals = line.split()
+        t = vals.pop(0)
+        time = '%s:%s:%s:%s:%s.%s'%(t[:4], t[4:7], t[8:10], t[10:12], t[12:14], 
+                                    t[14:])
+        data['time'].append(ct.DateTime(time).secs)
+        
+        for header in headers[1:]: # Already assigned time
+            value = vals.pop(0)
+            if value[0].isdigit():
+                data[header.lower()].append(float(value))
+            else:
+                data[header.lower()].append(value)
+            stale = vals.pop(0)
+
+    fid.close()
+    return data
+
+
+def readxlist2(filename):
+    def RepresentsInt(s):
+        if '.' in s:
+            return False
+        elif 'e' in s:
+            return False
+        else:
+            return True
+
+    def Update(val):
+        if val == 'S':
+            return False
+        else:
+            return True
+
+    def RepresentsNumber(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+    
+    fid = file(filename,'r')
+    headers = fid.readline().split()
+    testline = fid.readline().split()
+    fid.close()
+
+    names = ['time']
+    update_names = []
+    for header in headers[1:]:
+        header = header.lower()
+        names.append(header)
+        update_names.append(header + '_update')
+
+    conv = dict(zip(update_names, [Update] * len(update_names)))
+
+    dt = [(names[0], 'float64')]
+    k = 0
+    for item in testline[1:(len(testline) + 1):2]:
+        k = k + 1
+        name = headers[k].lower()
+
+        if RepresentsNumber(item):
+            if RepresentsInt(item):
+                dt.append((name, [('data', 'int64'), ('update', 'bool')]))
+            else:
+                dt.append((name, [('data', 'float64'), ('update', 'bool')]))
+        else:
+            dt.append((name, [('data', 'S8'), ('update', 'bool')]))
+
+
+    data = np.genfromtxt(filename, dtype=dt, names=names, converters=conv, 
+                         skip_header=1)
+
+
+    return data
+
+
+def runGRETAXList(time1, time2, outfile, decfile, envfile='env.txt'):
+    """ Run an XList Query using GRETA 
+
+    Using a prewritten dec file, generate an XList query from the GRETA VCDU
+    files.
+
+    time1 and time2 are time strings compatible as inputs to the DateTime
+    function.
+
+    outfile is where the xlist data are written to.
+
+    decfile is the prewritten GRETA dec file (with full path).
+
+    envfile is a file with all required GRETA environment variables. This 
+    necessary since some of these variables are overwritten when enabling the
+    Ska environment.
+
+
+    NOTE: This allows one to run GRETA from within the Ska environment which
+          is not an officially sanctioned use of GRETA.
+
+
+    """
+
+    def readENV(envfile):
+        fid = open(envfile,'r')
+        env = fid.readlines()
+        fid.close()
+        envvar = {}
+        for line in env:
+            pair = line.strip().split('=',1)
+            envvar[pair[0]]=pair[1]
+        return envvar
+
+    envvar = readENV('env.txt')
+
+    time1 = ct.DateTime(time1).greta
+    time2 = ct.DateTime(time2).greta
+    
+    decomcommand = ('decom98 -d ' + decfile + ' -m 3 -f ztlm_autoselect@' + 
+                    str(time1) + '-' + str(time2) + ' -a ' + outfile)
+    print('running:\n  %s\n'%decomcommand)
+    
+    d = sp.call(decomcommand, shell=True, env=envvar)
+    

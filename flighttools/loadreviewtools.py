@@ -22,6 +22,7 @@ import sys
 import os
 import numpy as np
 import argparse
+import glob
 
 
 class LoadReviewTools(object):
@@ -206,4 +207,9 @@ if __name__ == "__main__":
 
     if args['OutputThermalReport']:
         LoadReviewTools(propschedule=args['Propschedule'],
-                        reviewschedule=args['Reviewschedule'])   
+                        reviewschedule=args['Reviewschedule'])
+
+    # Copy files to parent directory
+    for file in glob.glob(args['Reviewschedule'] + '*'):
+        os.link(file, '../' + file)
+    
