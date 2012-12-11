@@ -397,10 +397,15 @@ def readxlist2(filename):
         except ValueError:
             return False
     
-    fid = file(filename,'r')
-    headers = fid.readline().split()
-    testline = fid.readline().split()
-    fid.close()
+
+    with open(filename, 'r') as fid:
+        headers = fid.readline().split()
+        testline = fid.readline().split()        
+    
+    #fid = file(filename,'r')
+    #headers = fid.readline().split()
+    #testline = fid.readline().split()
+    #fid.close()
 
     names = ['time']
     update_names = []
@@ -458,9 +463,14 @@ def runGRETAXList(time1, time2, outfile, decfile, envfile='env.txt'):
     """
 
     def readENV(envfile):
-        fid = open(envfile,'r')
-        env = fid.readlines()
-        fid.close()
+
+        with open(envfile, 'r') as fid:
+            env = fid.readlines()
+
+        #fid = open(envfile,'r')
+        #env = fid.readlines()
+        #fid.close()
+        
         envvar = {}
         for line in env:
             pair = line.strip().split('=',1)
