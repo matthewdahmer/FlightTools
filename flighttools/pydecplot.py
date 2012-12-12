@@ -12,7 +12,6 @@ import Ska
 import Ska.engarchive.fetch_eng as fetch
 import Chandra.Time as ct
 
-sys.path.append('/home/mdahmer/Library/Python/FlightTools/flighttools')
 import gretafun
 import dechelper
 import decplotdata
@@ -646,15 +645,12 @@ class plotdec(object):
 
         # Create empty axes lists for the primary axis, the binary sub
         # axes (in case they are required), and LTT axes.
-        axlist = [None for n in range(self.decplots['numplots'])]
-        self.axlist = axlist
+        self.axlist = [None for n in range(self.decplots['numplots'])]
 
-        baxlist = [None for n in range(self.decplots['numplots'])]
-        self.baxlist = baxlist
+        self.baxlist = [None for n in range(self.decplots['numplots'])]
 
         if self.plotltt:
-            lttaxlist = [None for n in range(self.decplots['numplots'])]
-            self.lttaxlist = lttaxlist
+            self.lttaxlist = [None for n in range(self.decplots['numplots'])]
         
 
         #---------------------------------------------------------------------
@@ -667,47 +663,60 @@ class plotdec(object):
             
 
             # Create Main Axes
-            ax = fig.add_axes(self.plotinfo['location'][plotnum],
-                              axisbg=bgcolor)
-            self.axlist[plotnum] = ax
+            plotloc = self.plotinfo['location'][plotnum]
+            self.axlist[plotnum] = fig.add_axes(plotloc, axisbg=bgcolor)
 
-            
+
+            # Create Primary Plots
             tracestats = self._plotaxis(plotnum)
 
+
             # Configure y axes for primary plot
-            self._configureyaxis(ax, tracestats=tracestats)
+            self._configureyaxis(self.axlist[plotnum], tracestats=tracestats)
 
 
             if self.plotltt:
-                lttax = fig.add_axes(self.plotinfo['lttslocation'][plotnum],
-                                     axisbg=bgcolor)
-                self.lttaxlist[plotnum] = lttax
+                lttplotloc = self.plotinfo['lttslocation'][plotnum]
+                self.lttaxlist[plotnum] = fig.add_axes(lttplotloc, axisbg=bgcolor)
                 
                 ltttracestats = self._plotlttaxis(plotnum)
+
                 if ltttracestats:
+                    # Use the LTT stats, this will be used to scale the y axes.
+                    # It is assumed that the LTT plot will include the primary
+                    # plot data, so the LTT stats (extrema) can be used 
+                    # instead.
                     tracestats.update(ltttracestats)
 
                 # Configure y axes for both primary and ltt plots to be equal
-                self._configureyaxis(ax, tracestats=tracestats)
-                self._configureyaxis(lttax, tracestats=tracestats)
+                self._configureyaxis(self.axlist[plotnum], 
+                                     tracestats=tracestats)
+                self._configureyaxis(self.lttaxlist[plotnum], 
+                                     tracestats=tracestats)
 
 
             # Create binary axes if defined (i.e. if it isn't None)
             if self.plotinfo['binarylocation'][plotnum]:
-                bax = fig.add_axes(self.plotinfo['binarylocation'][plotnum],
-                                   axisbg=self.plotinfo['bgcolor'])
-                self.baxlist[plotnum] = bax
+                binaryplotloc = self.plotinfo['binarylocation'][plotnum]
+                bincolor = axisbg=self.plotinfo['bgcolor']
+                self.baxlist[plotnum] = fig.add_axes(binaryplotloc, 
+                                                     axisbg=bincolor)
+
                 self._plotbinaryaxis(plotnum)
 
 
-            # Write the stats text
+            # Write the stats text for the current plot to the right of the 
+            # plot.
             self._writestats(tracestats, plotnum)
 
 
-        # Format the date axis
-        fig.autofmt_xdate(rotation=0, ha='center')
+        # # Format the date axis
+        # fig.autofmt_xdate(rotation=0, ha='center')
 
-        
+
+        #---------------------------------------------------------------------
+        # Save the plot to a file
+
         basename = os.path.basename(self.decfile).split('.')[0]
 
         t1 = ct.DateTime(self.time1).greta
