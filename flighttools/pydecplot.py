@@ -40,6 +40,7 @@ class plotdec(object):
         self.decplots = gretafun.parsedecplot(self.decfile)
         self.colors = self._importcolors()
         self.plotltt = plotltt
+        self.ltttimespan = 60 * 24 * 3600
         self.defaultcolors = ['RED', 'YELLOW', 'GREEN', 'AQUA', 'PINK', 'WHEAT',
                               'GREY', 'BROWN', 'BLUE', 'BLUEVIOLET', 'CYAN',
                               'TURQUIOSE', 'MAGENTA', 'SALMON', 'WHITE']
@@ -107,8 +108,9 @@ class plotdec(object):
     def _getplotloc(self):
         ''' Generate the location and sizing for all primary plots.
 
-        This does not include LTT and binary plots, although it will make room
-        for LTT plots. LTT plot sizing is defined in another function.
+        This does not include LTT and binary plots, Binary and LTT plot sizing
+        are defined in another function. This function will shift the primary 
+        plots to make room for LTT plots if LTT plots are requested.
         '''
         numplots = self.decplots['numplots']
         hspace = self.plotinfo['hspace']
@@ -213,9 +215,9 @@ class plotdec(object):
 
 
     def _generategrid(self, ax):
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.tick_params(axis='both', which='minor', length=6, color=[0.8, 0.8, 0.8])
+        #ax.xaxis.set_minor_locator(AutoMinorLocator())
+        #ax.yaxis.set_minor_locator(AutoMinorLocator())
+        #ax.tick_params(axis='both', which='minor', length=6, color=[0.8, 0.8, 0.8])
         ax.grid(b=True, which='both', color=self.plotinfo['fgcolor'])
         ax.set_axis_bgcolor(self.plotinfo['bgcolor'])
         ax.set_axisbelow(True)
@@ -236,46 +238,85 @@ class plotdec(object):
             t.set_color(self.plotinfo['fgcolor'])
 
 
-    def _configurexaxis(self, ax, plotnum, t1=None, t2=None, tracestats=None, 
-                        numticks=11):
-         # Define x axis labels/ticks
+    def _configurexaxis(self, ax, plotnum, t1=None, t2=None, numticks=11):
+        ''' Define x axis ticks.
+
+        Only plots tick marks, date labels are plotted separately
+
+        '''
+
         if not t1:
             t1 = ct.DateTime(self.time1).secs
 
         if not t2:
             t2 = ct.DateTime(self.time2).secs
 
+        # Generate a list of tick mark locations, the corresponding labels will
+        # empty strings, the actual date labels are only plotted at the bottom
+        # in the figure coordinate system, not the axis coordinate system.
         xtik = np.linspace(t1, t2, numticks)
 
-        if plotnum == self.decplots['numplots'] - 1:
-            xlab = ct.DateTime(xtik).date
-            xlab = [name[:8] + ' \n' + name[9:17] + ' ' for name in xlab]
-
-        else:
-            xlab = ['']
+        xlab = ['']
 
         ax.set_xticks(xtik)
-        ax.set_xticklabels(xlab, fontsize=self.plotinfo['datefontsize'],
-                           color=self.plotinfo['fgcolor'])
+        ax.set_xticklabels(xlab)
 
-        if tracestats:
-            # Limit the time axis to data that actually exists.
-            # This is not intended to be the default behavior, I want to see
-            # where data is missing.
-            xmin = 1e20
-            xmax = -1e20
-            for key in tracestats.keys():
-                xmin = np.min((xmin, tracestats[key].mintime))
-                xmax = np.max((xmax, tracestats[key].maxtime))
+        ax.set_xlim(t1, t2)
 
-            ax.set_xlim(xmin - 3600, xmax + 3600)
+
+    def _plotdatelabels(self, plotloc, t1=None, t2=None, numticks=11, 
+                        lttplot=False):
+        ''' Define x axis labels/ticks.
+
+        This plots the time stamps manually as annotations in the figure 
+        coordinate system. This should be plotted in the figure coordinate
+        system to avoid conflicts with binary plots. If the bottom plot
+        includes a binary plot, the primary plot axis can't be used to show
+        the axis labels (the binary plot will cover these labels). Rather 
+        than writing the logic to place the labels in one plot function or 
+        another, and to remember the right vertical location for plotting
+        the LTT date labels, the date label function is kept separate.
+
+        '''
+
+        if not t1:
+            t1 = ct.DateTime(self.time1).secs
+
+        if not t2:
+            t2 = ct.DateTime(self.time2).secs
+
+        # Vertical location of date labels
+        yloc = plotloc[1] - 0.04
+
+        # Generate a list of tick mark locations, the corresponding labels will
+        # either include date stamps, or empty strings so that only the bottom 
+        # plot shows the dates.
+        xtik = np.linspace(t1, t2, numticks)
+
+        # Generate date labels
+        xlabels = ct.DateTime(xtik).date
+        xlabels = [name[:8] + ' \n' + name[9:17] + ' ' for name in xlabels]
+
+        # Generate version of xtik in axis coordinate system
+        xtik_ax = np.linspace(0, 1, numticks)
+
+        # Convert axes x coordinate to figure coordinate system
+        #
+        # new x = axes ratio / axes width in fig coord. + axes left coord.
+        if lttplot:
+            xtik_fig = [x_ax * self.plotinfo['lttspace'] + 
+                        self.plotinfo['left'] for x_ax in xtik_ax]
         else:
-            # This runs if no msid could be plotted for this subplot (such
-            # as if the msid is not in the engineering archive).
-            ax.set_xlim(t1 - 3600, t2 + 3600)
-
-
+            xtik_fig = [x_ax * plotloc[2] + plotloc[0] for x_ax in xtik_ax]
             
+
+        for xloc, xlab in zip(xtik_fig, xlabels):
+            self.fig.text(xloc, yloc, xlab, ha="center", va="top",
+                          size=self.plotinfo['datefontsize'],
+                          color=self.plotinfo['fgcolor'])
+
+
+   
     def _configureyaxis(self, ax, tracestats=None):
        
         ax.tick_params(axis='y', labelsize=10,
@@ -481,7 +522,7 @@ class plotdec(object):
 
             tstat = self.decplots['plots'][plotnum]['traces'][tracenum]['TSTAT']
             
-            oneyearago = ct.DateTime(self.time2).secs - 60 * 24 * 3600 #365.25 * 24 * 3600
+            oneyearago = ct.DateTime(self.time2).secs - self.ltttimespan
             oneyearago = ct.DateTime(oneyearago).date
             telem, tracedata = self._getplotdata(plotnum, tracenum, 
                                                   time1=oneyearago,
@@ -515,8 +556,12 @@ class plotdec(object):
 
                 lttax.plot(plottimes, plotdata, color=tcolor, 
                            label=tracedata.name, linewidth=1)  
+            
+            time1secs = ct.DateTime(self.time1).secs
+            time2secs = ct.DateTime(self.time2).secs
+            lttax.axvspan(time1secs, time2secs, color=[.6, .6, .6], alpha=0.2)
 
-            t1 = ct.DateTime(self.time2).secs - 60 * 24 * 3600
+            t1 = ct.DateTime(self.time2).secs - self.ltttimespan
             self._configurexaxis(lttax, plotnum, t1=t1, numticks=2)        
         
         #
@@ -705,10 +750,21 @@ class plotdec(object):
                 self._plotbinaryaxis(plotnum)
 
 
+
             # Write the stats text for the current plot to the right of the 
             # plot.
             self._writestats(tracestats, plotnum)
 
+            
+        # Plot date labels in figure coordinate system
+        #
+        # plotloc should correspond to the bottom plot
+        self._plotdatelabels(plotloc)
+
+        if self.plotltt:
+            lttstart = ct.DateTime(self.time2).secs - self.ltttimespan
+            self._plotdatelabels(plotloc, t1=lttstart, t2=None, numticks=2, 
+                                 lttplot=True)
 
         # # Format the date axis
         # fig.autofmt_xdate(rotation=0, ha='center')
