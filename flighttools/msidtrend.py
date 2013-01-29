@@ -90,7 +90,8 @@ class MSIDTrend(object):
     """
     
     def __init__(self, msid, tstart='2000:001:00:00:00', tstop=None,
-                 trendmonths = 24, numstddev=2, removeoutliers=True):
+                 trendmonths = 24, numstddev=2, removeoutliers=True, 
+                 maxoutlierstddev=5):
 
         self.msid = msid
         self.tstart = ct.DateTime(tstart).date
@@ -103,6 +104,7 @@ class MSIDTrend(object):
         self.trendmonths = trendmonths
         self.numstddev = numstddev
         self.removeoutliers = removeoutliers
+        self.maxoutlierstddev = maxoutlierstddev
         self.telem = self._getMonthlyTelemetry()
         self.safetylimits = gretafun.getSafetyLimits(self.telem)
 
@@ -114,7 +116,8 @@ class MSIDTrend(object):
         
 
     def filteroutliers(self, datavals):
-        keep = np.abs(datavals - np.mean(datavals)) <= np.std(datavals)*5
+        keep = np.abs(datavals - np.mean(datavals)) <= (np.std(datavals) * 
+                                                        self.maxoutlierstddev)
         return keep
 
     def _getMonthlyTelemetry(self):
