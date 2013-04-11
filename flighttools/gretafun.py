@@ -462,7 +462,6 @@ def runDecFile(time1, time2, outfile, decfile, envfile='env.txt'):
 
     """
 
-
     envvar = readENV('env.txt')
 
     time1 = ct.DateTime(time1).greta
@@ -477,12 +476,9 @@ def runDecFile(time1, time2, outfile, decfile, envfile='env.txt'):
 
 def readENV(envfile):
 
-        with open(envfile, 'r') as fid:
-            env = fid.readlines()
-        
-        envvar = {}
-        for line in env:
-            pair = line.strip().split('=',1)
-            envvar[pair[0]]=pair[1]
-        return envvar
+    envvar = {}
+    for line in env:
+        pair = line.strip().split('=',1)
+        envvar[pair[0]]=pair[1]
+    return envvar
 
