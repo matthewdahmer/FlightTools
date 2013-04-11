@@ -759,7 +759,10 @@ class plotdec(object):
         # Plot date labels in figure coordinate system
         #
         # plotloc should correspond to the bottom plot
-        self._plotdatelabels(plotloc)
+        if self.plotinfo['binarylocation'][plotnum]:
+            self._plotdatelabels(binaryplotloc)
+        else:
+            self._plotdatelabels(plotloc)
 
         if self.plotltt:
             lttstart = ct.DateTime(self.time2).secs - self.ltttimespan
