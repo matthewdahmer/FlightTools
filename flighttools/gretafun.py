@@ -438,7 +438,7 @@ def readxlist2(filename):
     return data
 
 
-def runGRETAXList(time1, time2, outfile, decfile, envfile='env.txt'):
+def runDecFile(time1, time2, outfile, decfile, envfile='env.txt'):
     """ Run an XList Query using GRETA 
 
     Using a prewritten dec file, generate an XList query from the GRETA VCDU
@@ -462,14 +462,23 @@ def runGRETAXList(time1, time2, outfile, decfile, envfile='env.txt'):
 
     """
 
-    def readENV(envfile):
+
+    envvar = readENV('env.txt')
+
+    time1 = ct.DateTime(time1).greta
+    time2 = ct.DateTime(time2).greta
+
+    decomcommand = ('decom98 -d ' + decfile + ' -m 3 -f ztlm_autoselect@' +
+                    str(time1) + '-' + str(time2) + ' -a ' + outfile)
+    print('running:\n  %s\n'%decomcommand)
+
+    d = sp.call(decomcommand, shell=True, env=envvar)
+
+
+def readENV(envfile):
 
         with open(envfile, 'r') as fid:
             env = fid.readlines()
-
-        #fid = open(envfile,'r')
-        #env = fid.readlines()
-        #fid.close()
         
         envvar = {}
         for line in env:
@@ -477,14 +486,3 @@ def runGRETAXList(time1, time2, outfile, decfile, envfile='env.txt'):
             envvar[pair[0]]=pair[1]
         return envvar
 
-    envvar = readENV('env.txt')
-
-    time1 = ct.DateTime(time1).greta
-    time2 = ct.DateTime(time2).greta
-    
-    decomcommand = ('decom98 -d ' + decfile + ' -m 3 -f ztlm_autoselect@' + 
-                    str(time1) + '-' + str(time2) + ' -a ' + outfile)
-    print('running:\n  %s\n'%decomcommand)
-    
-    d = sp.call(decomcommand, shell=True, env=envvar)
-    
