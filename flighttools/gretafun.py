@@ -8,15 +8,12 @@ import subprocess as sp
 import Ska.engarchive.fetch_eng as fetch_eng
 import Chandra.Time as ct
 
-
-
     
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
     # Read the GLIMMON.dec file and store each line in "gfile"
-    filehandle = open(filename,'r')
-    gfile = filehandle.readlines()
-    filehandle.close()
+    with open(filename, 'r') as fid:
+        gfile = fid.readlines()
 
     # Initialize the glimmon dictionary
     glimmon = {}
@@ -475,6 +472,8 @@ def runDecFile(time1, time2, outfile, decfile, envfile='env.txt'):
 
 
 def readENV(envfile):
+    with open(envfile, 'r') as fid:
+        env = fid.readlines()
 
     envvar = {}
     for line in env:

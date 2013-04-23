@@ -59,13 +59,13 @@ class LoadReviewTools(object):
                                             'PM2THV1T Settle'],
                                'title':'Spacecraft: MUPS Valves'}}
         
-        self.propnames = ['TEPHIN', '3TRMTRAT', 'PM1THV1T', 'PM2THV1T',
-                          '1PDEAAT','1PIN1AT', 'TCYLAFT6', 'TMZP_MY',
-                          'TCYLFMZM', 'TFSSBKT1', '1DPAMZT', 'PFTANK2T',
+        self.propnames = ['TEPHIN', 'PM1THV1T', 'PM2THV1T','1PDEAAT', 
+                          'PIN1AT', 'TCYLAFT6', 'TCYLAFT6_0', 'TMZP_MY', 
+                          'PMTANK3T', 'PMTANK3T_0', '1DPAMZT', 'PFTANK2T',
                           'PF0TANK2T', 'SimPos', 'chips', 'FEP_Count',
                           'CCD_Count', 'Vid_Board', 'Clocking']
         
-        self.plotorder = ['minusz', 'tank', 'mups', 'psmc', 'dpa']
+        self.plotorder = ['minusyz', 'tank', 'mups', 'psmc', 'dpa']
 
         self.propschedule = propschedule
         self.reviewschedule = reviewschedule
