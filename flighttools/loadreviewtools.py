@@ -30,17 +30,18 @@ class LoadReviewTools(object):
     def __init__(self, propschedule, reviewschedule=None):
 
         self.fileparts = {'psmc':'_1pdeaat_plot.txt',
-                          'minusz':'_tephin_plot.txt',
+                          'minusyz':'_tephin_plot.txt',
                           'dpa':'_dpa_plot.txt',
                           'tank':'_pftank2t_plot.txt',
                           'mups':'_mups_valves_plot.txt'}
 
         self.headerinfo = {'psmc':{'columns':3,
-                                   'names':['Time', '1PDEAAT', '1PIN1AT'],
+                                   'names':['Time', '1PDEAAT', 'PIN1AT'],
                                    'title':'ACIS: PSMC'},
-                           'minusz':{'columns':8,
+                           'minusyz':{'columns':8,
                                      'names':['Time','TEPHIN', 'TCYLAFT6',
-                                              'TMZP_MY', 'TCYLFMZM', 'TFSSBKT1',
+                                              'TMZP_MY', 'PMTANK3T', 
+                                              'TCYLAFT6_0', 'PMTANK3T_0',
                                               'Pitch', 'Roll'],
                                      'title':'Spacecraft: Minus-Z'},
                            'dpa':{'columns':9,
