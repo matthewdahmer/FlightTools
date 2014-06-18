@@ -90,7 +90,7 @@ def parse_comments(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
     def add_changes(t, d):
 
         msid = '#\s+(\w+):?\s*'
-        vtype = '(\w+)\s*[=,:]?\s*'
+        vtype = '(\w+\s\w*)\s*[=,:]?\s*'
         val = '([0-9fFcC.-]+)\s*'
         dval = '(.*)'
         changelistpattern = (msid + vtype + val + vtype + val + dval)

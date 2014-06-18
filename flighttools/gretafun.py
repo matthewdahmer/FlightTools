@@ -34,6 +34,46 @@ def getGLIMMONLimits(MSID, glimmon=None):
     return glimits
 
 
+def getTDBLimits(telem):
+    """ Retrieve the TDB limits from the telem object
+
+    Returns an empty dict object if there are no limits specified in the
+    database
+    """
+
+    tdblimits = {}
+
+    try:
+        # Get the TDB default set num, this is the only limit set that is
+        # modified.
+        tdbdefault = telem.tdb.limit_default_set_num
+        limits = telem.tdb.Tlmt
+
+        if limits:
+
+            if isinstance(telem.tdb.Tlmt['LIMIT_SET_NUM'], np.ndarray):
+                # There is more than one limit set, use the default set.
+                mask = telem.tdb.Tlmt['LIMIT_SET_NUM'] == tdbdefault
+                limits = telem.tdb.Tlmt[mask]
+
+            tdblimits['warning_low'] = limits['WARNING_LOW']
+            tdblimits['caution_low'] = limits['CAUTION_LOW']
+            tdblimits['caution_high'] = limits['CAUTION_HIGH']
+            tdblimits['warning_high'] = limits['WARNING_HIGH']
+
+    except AttributeError as e:
+        print('%s Attribute Error: %S'%(telem.MSID, str(e)))
+        tdblimits = {}
+
+    except KeyError:
+        print('%s does not have limits in Engineering Archive TDB'
+               %telem.MSID)
+        tdblimits = {}
+
+    return tdblimits
+
+
+
 def getSafetyLimits(telem):
     """ Update the current database limits
 
@@ -65,55 +105,6 @@ def getSafetyLimits(telem):
     #FIXME PRIORITY LOW Add the ability to update multiple limit sets for a
     a single msid#
     """
-
-    def getTDBLimits(telem):
-        """ Retrieve the TDB limits from the telem object
-
-        Returns an empty dict object if there are no limits specified in the
-        database
-        """
-
-        safetylimits = {}
-
-        try:
-            # Get the TDB default set num, this is the only limit set that is
-            # modified.
-            tdbdefault = telem.tdb.limit_default_set_num
-
-            limits = telem.tdb.Tlmt
-
-            if limits:
-
-                if len(telem.tdb.Tlmt) == 1:
-                    #In this case there is only one limit set
-                    safetylimits['warning_low'] = limits['WARNING_LOW']
-                    safetylimits['caution_low'] = limits['CAUTION_LOW']
-                    safetylimits['caution_high'] = limits['CAUTION_HIGH']
-                    safetylimits['warning_high'] = limits['WARNING_HIGH']
-
-                else:
-                    # Then assume there is more than one limit set and use the
-                    # default set.
-                    mask = telem.tdb.Tlmt['LIMIT_SET_NUM'].data == tdbdefault
-
-                    safetylimits['warning_low'] = \
-                                        limits['WARNING_LOW'].data[mask][0]
-                    safetylimits['caution_low'] = \
-                                        limits['CAUTION_LOW'].data[mask][0]
-                    safetylimits['caution_high'] = \
-                                        limits['CAUTION_HIGH'].data[mask][0]
-                    safetylimits['warning_high'] = \
-                                        limits['WARNING_HIGH'].data[mask][0]
-        except AttributeError as e:
-            print('%s Attribute Error: %S'%(telem.MSID, str(e)))
-            safetylimits = {}
-
-        except KeyError:
-            print('%s does not have limits in Engineering Archive TDB'
-                   %telem.MSID)
-            safetylimits = {}
-
-        return safetylimits
 
     # Set the safetylimits dict here. An empty dict is returned if there are no
     # limits specified. This is intended and relied upon later.
@@ -268,8 +259,7 @@ def runDecFile(time1, time2, outfile, decfile, envfile='env.txt'):
 
     decfile is the prewritten GRETA dec file (with full path).
 
-    envfile is a file with all required GRETA environment variables. This
-
+    envfile is a file with all required GRETA environment variables. This is
     necessary since some of these variables are overwritten when enabling the
     Ska environment.
 

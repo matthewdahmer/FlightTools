@@ -33,6 +33,7 @@ class LoadReviewTools(object):
                           'minusyz':'_tephin_plot.txt',
                           'dpa':'_dpa_plot.txt',
                           'tank':'_pftank2t_plot.txt',
+                          'aca':'_aca_plot.txt',
                           'mups':'_mups_valves_plot.txt'}
 
         self.headerinfo = {'psmc':{'columns':3,
@@ -53,19 +54,24 @@ class LoadReviewTools(object):
                                    'names':['Time', 'PFTANK2T', 'PFTANKIP',
                                             'PF0TANK2T', 'Pitch', 'Roll'],
                                    'title':'Spacecraft: Fuel Tank'},
+                           'aca':{'columns':5,
+                                   'names':['Time', 'AACCCDPT', 'ACA0',
+                                            'Pitch', 'Roll'],
+                                   'title':'Spacecraft: Fuel Tank'},
                            'mups':{'columns':5,
                                    'names':['Time', 'PM1THV1T',
                                             'PM1THV1T Settle', 'PM2THV1T',
                                             'PM2THV1T Settle'],
-                               'title':'Spacecraft: MUPS Valves'}}
+                                   'title':'Spacecraft: MUPS Valves'}}
         
         self.propnames = ['TEPHIN', 'PM1THV1T', 'PM2THV1T','1PDEAAT', 
                           'PIN1AT', 'TCYLAFT6', 'TCYLAFT6_0', 'TMZP_MY', 
                           'PMTANK3T', 'PMTANK3T_0', '1DPAMZT', 'PFTANK2T',
                           'PF0TANK2T', 'SimPos', 'chips', 'FEP_Count',
-                          'CCD_Count', 'Vid_Board', 'Clocking']
+                          'CCD_Count', 'Vid_Board', 'Clocking', 'AACCCDPT',
+                          'ACA0']
         
-        self.plotorder = ['minusyz', 'tank', 'mups', 'psmc', 'dpa']
+        self.plotorder = ['minusyz', 'tank', 'mups', 'psmc', 'dpa', 'aca']
 
         self.propschedule = propschedule
         self.reviewschedule = reviewschedule
