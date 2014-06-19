@@ -5,8 +5,6 @@ import re
 import Ska.engarchive.fetch_eng as fetch_eng
 import Chandra.Time as ct
 
-from utils import ss_vector # currently using local version
-
 
 def readEclipseFileLine(line):
     words = line.split()
@@ -32,12 +30,15 @@ def readEclipseFile(filename):
     eclipse = {}
 
     words = datalines.pop(0).split()
-    eclipse.update({'epoch':words[-2][:4]})
-    eclipse.update(dict({'epoch':zip(('year','day'),
-                                     (words[-2][:4],words[-2][5:]))}))
+    eclipse.update({'epoch':words})
+    # eclipse.update({'epoch':words[-2][:4]})
+    # eclipse.update(dict({'epoch':zip(('year','day'),
+    #                                  (words[-2][:4],words[-2][5:]))}))
 
+    # This advances the line and ensures that empty lines and unimportant text is not read in,
+    # provided the unimportant text is less than 50 characters long.
     line = datalines.pop(0)
-    while len(line) < 5:
+    while len(line) < 50:
         line = datalines.pop(0)
         
     headers = re.split("\s{2,5}",line.strip())
@@ -55,37 +56,31 @@ def readEclipseFile(filename):
 
     n = -1
 
+    numcols = len(headers) + 2 # +2 because dates include spaces
+
     while len(datalines) > 0:
         line = datalines.pop(0).strip()
         
-        if len(line.split()) == 9:
+        if len(line.split()) == numcols:
             n = n + 1
             eclipse.update({n:{}})
 
             eclipsedata = readEclipseFileLine(line)
 
-            # I had some trouble getting the syntax right for this nested dict
-            # so for future reference here are two good simpler examples that
-            # have the same result:
-            #
-            # t1 = ('one', 'two')
-            # t2 = (1, 2) 
-            # dict({'a':dict(zip(t1, t2))})
-            # dict(a=dict(zip(t1, t2)))
-            #
             eclipse[n].update(dict(entrancepenumbra=dict(zip(headers,
                                                              eclipsedata))))
 
-            if len(datalines[0].split()) == 7:
-                line = datalines.pop(0)
-                eclipsedata = readEclipseFileLine(line)
-                eclipse[n].update(dict(umbra=dict(zip(headers[:-2],
-                                                      eclipsedata))))
-                
-                line = datalines.pop(0)
-                eclipsedata = readEclipseFileLine(line)
-                eclipse[n].update(dict(exitpenumbra=dict(zip(headers[:-2],
-                                                             eclipsedata))))
+            if len(datalines) > 0:
+                if len(datalines[0].split()) == 7:
+                    line = datalines.pop(0)
+                    eclipsedata = readEclipseFileLine(line)
+                    eclipse[n].update(dict(umbra=dict(zip(headers[:-2],
+                                                          eclipsedata))))
+                    
+                    line = datalines.pop(0)
+                    eclipsedata = readEclipseFileLine(line)
+                    eclipse[n].update(dict(exitpenumbra=dict(zip(headers[:-2],
+                                                                 eclipsedata))))
 
     return eclipse
 
