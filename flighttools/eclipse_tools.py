@@ -96,9 +96,10 @@ def convertEclipseTimes(eclipse):
                 eclipse[n][m].update({'stopsec':
                                       ct.DateTime(eclipse[n][m]['Stop Time']).secs})
                 if m == 'entrancepenumbra':
-                    eclipse[n][m].update({'timersec':
-                                          np.double(eclipse[n][m]
-                                                    ['Entry Timer'])})
+                    if eclipse[n][m].has_key('Entry Timer'):
+                        eclipse[n][m].update({'timersec':
+                                              np.double(eclipse[n][m]
+                                                        ['Entry Timer'])})
     return eclipse
 
 

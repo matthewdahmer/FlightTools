@@ -7,6 +7,9 @@ from Chandra.Time import DateTime
 
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
+    version_pattern = '.*Version\s*:\s*[$]?([A-Za-z0-9.: \t]*)[$]?"\s*$'
+    database_pattern = '.*Database\s*:\s*(\w*)"\s*$'
+
     # Read the GLIMMON.dec file and store each line in "gfile"
     with open(filename, 'r') as fid:
         gfile = fid.readlines()
@@ -21,8 +24,8 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
         words = line.split()
 
         if words:
-            # Only process lines that begin with MLOAD, MLIMIT, MLMTOL, MLIMSW,
-            # or MLMENABLE. This means that all lines with equations are
+            # Only process lines that begin with MLOAD, MLIMIT, MLMTOL, MLIMSW, MLMENABLE,
+            # MLMDEFTOL, or MLMTHROW. This means that all lines with equations are
             # omitted; we are only interested in the limits and expected states
 
             if words[0] == 'MLOAD':
@@ -64,6 +67,20 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
             elif words[0] == 'MLMENABLE':
                 glimmon[name].update({'mlmenable':int(words[1])})
+
+            elif words[0] == 'MLMDEFTOL':
+                glimmon.update({'mlmdeftol':int(words[1])})
+
+            elif words[0] == 'MLMTHROW':
+                glimmon.update({'mlmthrow':int(words[1])})
+
+            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Version', line)) > 0:
+                version = re.findall(version_pattern, line)
+                glimmon.update({'version':version[0].strip()})
+
+            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Database', line)) > 0:
+                database = re.findall(database_pattern, line)
+                glimmon.update({'database':database[0].strip()})
 
     return glimmon
 
