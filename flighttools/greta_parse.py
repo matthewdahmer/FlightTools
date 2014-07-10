@@ -6,7 +6,7 @@ import Ska.engarchive.fetch_eng as fetch_eng
 from Chandra.Time import DateTime
 
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
-
+    revision_pattern = '^#\$Revision\s*:\s*([0-9.]+).*$'
     version_pattern = '.*Version\s*:\s*[$]?([A-Za-z0-9.: \t]*)[$]?"\s*$'
     database_pattern = '.*Database\s*:\s*(\w*)"\s*$'
 
@@ -31,9 +31,14 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
             if words[0] == 'MLOAD':
                 name = words[1]
                 glimmon.update({name:{}})
+
             elif words[0] == 'MLIMIT':
                 setnum = int(words[2])
                 glimmon[name].update({setnum:{}})
+                if glimmon[name].has_key('setkeys'):
+                    glimmon[name]['setkeys'].append(setnum)
+                else:
+                    glimmon[name]['setkeys'] = [setnum,]
 
                 if 'DEFAULT' in words:
                     glimmon[name].update({'default':setnum})
@@ -44,7 +49,7 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
                 if 'PPENG' in words:
                     ind = words.index('PPENG')
-                    glimmon[name][setnum].update({'type':'limit'})
+                    glimmon[name].update({'type':'limit'})
                     glimmon[name][setnum].update({'warning_low':
                                                   float(words[ind + 1])})
                     glimmon[name][setnum].update({'caution_low':
@@ -56,7 +61,7 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
 
                 if 'EXPST' in words:
                     ind = words.index('EXPST')
-                    glimmon[name][setnum].update({'type':'state'})
+                    glimmon[name].update({'type':'expected_state'})
                     glimmon[name][setnum].update({'expst':words[ind + 1]})
 
             elif words[0] == 'MLMTOL':
@@ -81,6 +86,11 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
             elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Database', line)) > 0:
                 database = re.findall(database_pattern, line)
                 glimmon.update({'database':database[0].strip()})
+
+            elif len(re.findall('^#\$Revision', line)) > 0:
+                revision = re.findall(revision_pattern, line)
+                glimmon.update({'revision':revision[0].strip()})
+
 
     return glimmon
 
