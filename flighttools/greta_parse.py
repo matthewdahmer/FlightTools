@@ -7,7 +7,8 @@ from Chandra.Time import DateTime
 
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
     revision_pattern = '^#\$Revision\s*:\s*([0-9.]+).*$'
-    version_pattern = '.*Version\s*:\s*[$]?([A-Za-z0-9.: \t]*)[$]?"\s*$'
+    date_pattern = '^#\$Date\s*:\s*([0-9]+)/([0-9]+)/([0-9]+)\s+([0-9]+):([0-9]+):([0-9]+).*$'
+    version_pattern = '.*Version\s*:\s*[$]?([A-Za-z0-9.:\s*]*)[$]?"\s*$'
     database_pattern = '.*Database\s*:\s*(\w*)"\s*$'
 
     # Read the GLIMMON.dec file and store each line in "gfile"
@@ -83,6 +84,10 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
                 version = re.findall(version_pattern, line)
                 glimmon.update({'version':version[0].strip()})
 
+            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Revision', line)) > 0:
+                version = re.findall(version_pattern, line)
+                glimmon.update({'version':version[0].strip()})
+
             elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Database', line)) > 0:
                 database = re.findall(database_pattern, line)
                 glimmon.update({'database':database[0].strip()})
@@ -91,6 +96,9 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
                 revision = re.findall(revision_pattern, line)
                 glimmon.update({'revision':revision[0].strip()})
 
+            elif len(re.findall('^#\$Date', line)) > 0:
+                date = re.findall(date_pattern, line)
+                glimmon.update({'date':date[0]})
 
     return glimmon
 
@@ -348,7 +356,7 @@ def process_limits_file(filename='limfile.txt'):
 
     return limlog
 
-def parsedecplot(decfile):
+def parsedecplot(decfile, removewidechars=True):
     '''Parse a GRETA dec plot file to extract plotting data. This will not
     grab text display data.
     '''
@@ -436,6 +444,10 @@ def parsedecplot(decfile):
             traces[tnum]['TCOLOR'] = finddecstring('TCOLOR', tracedef)
             traces[tnum]['TCALC'] = finddecstring('TCALC', tracedef)
             traces[tnum]['TSTAT'] = finddecstring('TSTAT', tracedef)
+            if removewidechars:
+                if traces[tnum]['TMSID'] != None:
+                    traces[tnum]['TMSID'] = traces[tnum]['TMSID'].replace('_WIDE', '')
+                    traces[tnum]['TMSID'] = traces[tnum]['TMSID'].replace('_wide', '')
         plots[num]['traces'] = traces
 
         # TBLINDEX - do this separate in case they are intermingled with
@@ -451,6 +463,10 @@ def parsedecplot(decfile):
                 tbtraces[tbnum]['TMSID'] = finddecstring('TMSID', tbtracedef)
                 tbtraces[tbnum]['TNAME'] = finddecstring('TNAME', tbtracedef)
                 tbtraces[tbnum]['TCOLOR'] = finddecstring('TCOLOR', tbtracedef)
+                if removewidechars:
+                    if traces[tnum]['TMSID'] != None:
+                        traces[tnum]['TMSID'] = traces[tnum]['TMSID'].replace('_WIDE', '')
+                        traces[tnum]['TMSID'] = traces[tnum]['TMSID'].replace('_wide', '')
             plots[num]['tbtraces'] = tbtraces
 
     decplots['plots'] = plots
