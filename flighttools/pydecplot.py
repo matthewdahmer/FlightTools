@@ -46,15 +46,15 @@ class plotdec(object):
                               'TURQUIOSE', 'MAGENTA', 'SALMON', 'WHITE']
         self.plotinfo = {'bgcolor':bgcolor,
                          'fgcolor':fgcolor,
-                         'top':0.9,
+                         'top':0.88,
                          'wspace':None,
                          'hspace':0.3,
                          'binarylocation':[None]*self.decplots['numplots']}
         if orientation.lower() == 'landscape':
             sizeparam =  {'width':18,
-                          'height':12,
+                          'height':10,
                           'left':0.05,
-                          'bottom':0.07,
+                          'bottom':0.05,
                           'right':0.78,
                           'stampfontsize':10,
                           'datefontsize':10,
@@ -90,7 +90,7 @@ class plotdec(object):
             self.time1 = ct.DateTime(ct.DateTime(time2).secs - 10*24*3600).date
 
         self._plotfigure()
-        plt.show()
+        plt.draw()
 
     def _addlttsplots(self):
         ''' Make space for LTT plots on the left.
@@ -286,7 +286,7 @@ class plotdec(object):
             t2 = ct.DateTime(self.time2).secs
 
         # Vertical location of date labels
-        yloc = plotloc[1] - 0.04
+        yloc = plotloc[1] - 0.01
 
         # Generate a list of tick mark locations, the corresponding labels will
         # either include date stamps, or empty strings so that only the bottom 
