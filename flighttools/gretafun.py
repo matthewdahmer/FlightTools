@@ -4,12 +4,16 @@ import pickle
 import numpy as np
 import re
 import subprocess as sp
+import sqlite3
+#import json
+import cPickle as pickle
 
 import Ska.engarchive.fetch_eng as fetch_eng
 from Chandra.Time import DateTime
 
 # Parsing functions placed in separate file to improve readability
 from greta_parse import *
+
 
 
 def getGLIMMONLimits(MSID, glimmon=None):
@@ -34,43 +38,109 @@ def getGLIMMONLimits(MSID, glimmon=None):
     return glimits
 
 
-def getTDBLimits(telem):
-    """ Retrieve the TDB limits from the telem object
+# def getTDBLimits(telem):
+#     """ Retrieve the TDB limits from the telem object
+
+#     Returns an empty dict object if there are no limits specified in the
+#     database
+#     """
+
+#     tdblimits = {}
+
+#     try:
+#         # Get the TDB default set num, this is the only limit set that is
+#         # modified.
+#         tdbdefault = telem.tdb.limit_default_set_num
+#         limits = telem.tdb.Tlmt
+
+#         if limits:
+
+#             if isinstance(telem.tdb.Tlmt['LIMIT_SET_NUM'], np.ndarray):
+#                 # There is more than one limit set, use the default set.
+#                 mask = telem.tdb.Tlmt['LIMIT_SET_NUM'] == tdbdefault
+#                 limits = telem.tdb.Tlmt[mask]
+
+#             tdblimits['warning_low'] = limits['WARNING_LOW']
+#             tdblimits['caution_low'] = limits['CAUTION_LOW']
+#             tdblimits['caution_high'] = limits['CAUTION_HIGH']
+#             tdblimits['warning_high'] = limits['WARNING_HIGH']
+
+#     except AttributeError as e:
+#         print('%s Attribute Error: %S'%(telem.MSID, str(e)))
+#         tdblimits = {}
+
+#     except KeyError:
+#         print('%s does not have limits in Engineering Archive TDB'
+#                %telem.MSID)
+#         tdblimits = {}
+
+#     return tdblimits
+
+def isnotnan(arg):
+   try:
+       np.isnan(arg)
+   except: # Need to use blanket except, NotImplementedError won't catch
+       return True
+   return False
+
+
+def getTDBLimits(telem, dbver='p012'):
+    """ Retrieve the TDB limits from a json version of the MS Access database.
 
     Returns an empty dict object if there are no limits specified in the
     database
     """
 
-    tdblimits = {}
+    def assign_sets(dbsets):
+        """ Copy over only the limit/expst sets, other stuff is not copied.
+
+        This also adds a list of set numbers.
+        """
+        limits = {'setkeys':[]}
+        for setnum in dbsets.keys():
+            setnumint = int(setnum) - 1
+            limits.update({setnumint:dbsets[setnum]})
+            limits['setkeys'].append(setnumint)
+        return limits
+
+    def get_tdb(dbver):
+        # tdbs = json.load(open('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/tdb_all.json','r'))
+        tdbs = pickle.load(open('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/tdb_all.pkl','r'))
+        return tdbs[dbver.lower()]
 
     try:
-        # Get the TDB default set num, this is the only limit set that is
-        # modified.
-        tdbdefault = telem.tdb.limit_default_set_num
-        limits = telem.tdb.Tlmt
+        # telem is only used to pass the msid name, and is used for backwards compatibility only.
+        msid = telem.msid.lower()
+        tdb = get_tdb(dbver)
 
-        if limits:
+        limits = assign_sets(tdb[msid]['limit'])
+        limits['type'] = 'limit'
 
-            if isinstance(telem.tdb.Tlmt['LIMIT_SET_NUM'], np.ndarray):
-                # There is more than one limit set, use the default set.
-                mask = telem.tdb.Tlmt['LIMIT_SET_NUM'] == tdbdefault
-                limits = telem.tdb.Tlmt[mask]
+        if isnotnan(tdb[msid]['limit_default_set_num']):
+            limits['default'] = tdb[msid]['limit_default_set_num'] - 1
+        else:
+            limits['default'] = 0
 
-            tdblimits['warning_low'] = limits['WARNING_LOW']
-            tdblimits['caution_low'] = limits['CAUTION_LOW']
-            tdblimits['caution_high'] = limits['CAUTION_HIGH']
-            tdblimits['warning_high'] = limits['WARNING_HIGH']
+        # Add limit switch info if present
+        if isnotnan(tdb[msid]['limit_switch_msid']):
+            limits['mlimsw'] = tdb[msid]['limit_switch_msid']
 
-    except AttributeError as e:
-        print('%s Attribute Error: %S'%(telem.MSID, str(e)))
-        tdblimits = {}
+        # Fill in switchstate info if present
+        for setkey in limits['setkeys']:
+            if 'state_code' in limits[setkey].keys():
+                limits[setkey]['switchstate'] = limits[setkey]['state_code']
+                _ = limits[setkey].pop('state_code')
+
+        # For now, only the default limit set is returned, this will help with backwards compatibility.
+        # Future versions, rewritten for web applications will not have this limitation.
+        tdblimits = limits[limits['default']]
 
     except KeyError:
-        print('%s does not have limits in Engineering Archive TDB'
-               %telem.MSID)
+        print('{} does not have limits in the TDB'.format(telem.MSID))
         tdblimits = {}
 
     return tdblimits
+
 
 
 
@@ -114,26 +184,40 @@ def getSafetyLimits(telem):
     # upper case.
     MSID = telem.msid.upper()
 
-    # Read the GLIMMON file
-    glimmon = readGLIMMON()
+    # Read the GLIMMON data
+    try:
+        db = sqlite3.connect('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
+        cursor = db.cursor()
+        cursor.execute('''SELECT a.msid, a.setkey, a.default_set, a.warning_low, 
+                          a.caution_low, a.caution_high, a.warning_high FROM limits AS a 
+                          WHERE a.active_set=1 AND a.setkey = a.default_set AND a.msid = ?
+                          AND a.modversion = (SELECT MAX(b.modversion) FROM limits AS b
+                          WHERE a.msid = b.msid and a.setkey = b.setkey)''', [MSID.lower(),])
+        lims = cursor.fetchone()
+        glimits = {'warning_low':lims[3], 'caution_low':lims[4], 'caution_high':lims[5], 
+                   'warning_high':lims[6]}
+    except:
+        print('{} not in G_LIMMON Database'.format(MSID))
+        glimits = {}
 
-    # Generate GLIMMON tests for use later
-    msid_has_glimmon_limits = False # Initialize to False
-    msid_in_glimmon = MSID in glimmon.keys()
-    if msid_in_glimmon:
-        if glimmon[MSID].has_key(0):
-            if glimmon[MSID][0].has_key('type'):
-                msid_has_glimmon_limits = glimmon[MSID][0]['type'] == 'limit'
+    # glimmon = readGLIMMON()
+
+    # # Generate GLIMMON tests for use later
+    # msid_has_glimmon_limits = False # Initialize to False
+    # msid_in_glimmon = MSID in glimmon.keys()
+    # if msid_in_glimmon:
+    #     if glimmon[MSID].has_key(0):
+    #         if glimmon[MSID][0].has_key('type'):
+    #             msid_has_glimmon_limits = glimmon[MSID][0]['type'] == 'limit'
 
     # If there are no limits in the TDB but there are in GLIMMON, use the
     # GLIMMON limits
-    if not safetylimits and  msid_in_glimmon and msid_has_glimmon_limits:
-        safetylimits = getGLIMMONLimits(MSID, glimmon)
+    if not safetylimits and glimits:
+        safetylimits = glimits
 
     # If there are limits in both GLIMMON and the TDB use the set that
     # is most permissive.
-    if safetylimits and  msid_in_glimmon and msid_has_glimmon_limits:
-        glimits = getGLIMMONLimits(MSID, glimmon)
+    if safetylimits and glimits:
 
         if glimits['warning_low'] < safetylimits['warning_low']:
             safetylimits['warning_low'] = glimits['warning_low']

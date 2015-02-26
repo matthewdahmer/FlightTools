@@ -2,6 +2,7 @@
 """ Create an object to make rudimentary predictions for telemetry.
 """
 import numpy as np
+import sqlite3
 
 import Ska.engarchive.fetch_eng as fetch_eng
 import Chandra.Time as ct
@@ -108,12 +109,17 @@ class MSIDTrend(object):
         self.telem = self._getMonthlyTelemetry()
         self.safetylimits = gretafun.getSafetyLimits(self.telem)
 
-        glims = gretafun.getGLIMMONLimits(self.telem)
-        if glims:
-            self.trendinglimits = glims
-        else:
-            self.trendinglimits = self.safetylimits
-        
+        db = sqlite3.connect('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
+        cursor = db.cursor()
+        cursor.execute('''SELECT a.msid, a.setkey, a.default_set, a.warning_low, 
+                          a.caution_low, a.caution_high, a.warning_high FROM limits AS a 
+                          WHERE a.active_set=1 AND a.setkey = a.default_set AND a.msid = ?
+                          AND a.modversion = (SELECT MAX(b.modversion) FROM limits AS b
+                          WHERE a.msid = b.msid and a.setkey = b.setkey)''', [msid.lower(),])
+        lims = cursor.fetchone()
+        self.trendinglimits = {'warning_low':lims[3], 'caution_low':lims[4], 'caution_high':lims[5], 
+                 'warning_high':lims[6]}
+
 
     def filteroutliers(self, datavals):
         keep = np.abs(datavals - np.mean(datavals)) <= (np.std(datavals) * 
