@@ -6,8 +6,8 @@ import Ska.engarchive.fetch_eng as fetch_eng
 from Chandra.Time import DateTime
 
 def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
-    revision_pattern = '^#\$Revision\s*:\s*([0-9.]+).*$'
-    date_pattern = '^#\$Date\s*:\s*([0-9]+)/([0-9]+)/([0-9]+)\s+([0-9]+):([0-9]+):([0-9]+).*$'
+    revision_pattern = '.*\$Revision\s*:\s*([0-9.]+).*$'
+    date_pattern = '.*\$Date\s*:\s*([0-9]+)/([0-9]+)/([0-9]+)\s+([0-9]+):([0-9]+):([0-9]+).*$'
     version_pattern = '.*Version\s*:\s*[$]?([A-Za-z0-9.:\s*]*)[$]?"\s*$'
     database_pattern = '.*Database\s*:\s*(\w*)"\s*$'
 
@@ -21,6 +21,11 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
     # Step through each line in the GLIMMON.dec file
     for line in gfile:
 
+        comment_line = line[line.find('#'):].strip()
+
+        # Remove comments
+        line = line[:line.find('#')].strip()
+
         # Assume the line uses whitespace as a delimiter
         words = line.split()
 
@@ -29,7 +34,7 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
             # MLMDEFTOL, or MLMTHROW. This means that all lines with equations are
             # omitted; we are only interested in the limits and expected states
 
-            if words[0] == 'MLOAD':
+            if (words[0] == 'MLOAD') & (len(words) == 2):
                 name = words[1]
                 glimmon.update({name:{}})
 
@@ -80,11 +85,12 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
             elif words[0] == 'MLMTHROW':
                 glimmon.update({'mlmthrow':int(words[1])})
 
-            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Version', line)) > 0:
-                version = re.findall(version_pattern, line)
+            elif len(re.findall(revision_pattern, line)) > 0:
+                version = re.findall(revision_pattern, line)
+                glimmon.update({'revision':version[0].strip()})
                 glimmon.update({'version':version[0].strip()})
 
-            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Revision', line)) > 0:
+            elif len(re.findall('^XMSID TEXTONLY ROWCOL.*COLOR.*Version', line)) > 0:
                 version = re.findall(version_pattern, line)
                 glimmon.update({'version':version[0].strip()})
 
@@ -92,13 +98,15 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
                 database = re.findall(database_pattern, line)
                 glimmon.update({'database':database[0].strip()})
 
-            elif len(re.findall('^#\$Revision', line)) > 0:
-                revision = re.findall(revision_pattern, line)
-                glimmon.update({'revision':revision[0].strip()})
+        # elif len(re.findall('^#\$Revision', comment_line)) > 0:
+        elif len(re.findall(revision_pattern, comment_line)) > 0:
+            revision = re.findall(revision_pattern, comment_line)
+            glimmon.update({'revision':revision[0].strip()})
 
-            elif len(re.findall('^#\$Date', line)) > 0:
-                date = re.findall(date_pattern, line)
-                glimmon.update({'date':date[0]})
+        # elif len(re.findall('^#\$Date', comment_line)) > 0:
+        elif len(re.findall(date_pattern, comment_line)) > 0:
+            date = re.findall(date_pattern, comment_line)
+            glimmon.update({'date':date[0]})
 
     return glimmon
 
