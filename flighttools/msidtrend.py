@@ -113,9 +113,10 @@ class MSIDTrend(object):
         cursor = db.cursor()
         cursor.execute('''SELECT a.msid, a.setkey, a.default_set, a.warning_low, 
                           a.caution_low, a.caution_high, a.warning_high FROM limits AS a 
-                          WHERE a.active_set=1 AND a.setkey = a.default_set AND a.msid = ?
+                          WHERE a.setkey = a.default_set AND a.msid = ?
                           AND a.modversion = (SELECT MAX(b.modversion) FROM limits AS b
                           WHERE a.msid = b.msid and a.setkey = b.setkey)''', [msid.lower(),])
+
         lims = cursor.fetchone()
         self.trendinglimits = {'warning_low':lims[3], 'caution_low':lims[4], 'caution_high':lims[5], 
                  'warning_high':lims[6]}
