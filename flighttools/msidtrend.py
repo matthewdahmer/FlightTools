@@ -114,8 +114,7 @@ class MSIDTrend(object):
         self.telem = self._getMonthlyTelemetry()
         self.safetylimits = pylimmon.get_safety_limits(msid)
 
-        # db = sqlite3.connect('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
-        db = sqlite3.connect('/Users/wolf809/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
+        db = pylimmon.open_sqlite_file()
         cursor = db.cursor()
         cursor.execute('''SELECT a.msid, a.setkey, a.default_set, a.warning_low, 
                           a.caution_low, a.caution_high, a.warning_high FROM limits AS a 
