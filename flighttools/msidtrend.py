@@ -3,12 +3,17 @@
 """
 import numpy as np
 import sqlite3
+import sys
 
 import Ska.engarchive.fetch_eng as fetch_eng
-import Chandra.Time as ct
+from Chandra.Time import DateTime
 
-import gretafun
+#import gretafun
 
+from os.path import expanduser
+home = expanduser("~")
+sys.path.append(home + '/AXAFLIB/pylimmon/')
+import pylimmon
 
 class MSIDTrend(object):
     """ Create an object to make linear predictions for telemetry.
@@ -91,32 +96,32 @@ class MSIDTrend(object):
     """
     
     def __init__(self, msid, tstart='2000:001:00:00:00', tstop=None,
-                 trendmonths = 24, numstddev=2, removeoutliers=True, 
+                 trendmonths = 36, numstddev=2, removeoutliers=True, 
                  maxoutlierstddev=5):
 
         self.msid = msid
-        self.tstart = ct.DateTime(tstart).date
+        self.tstart = DateTime(tstart).date
         
         if tstop == None:
-            self.tstop = ct.DateTime().date
+            self.tstop = DateTime().date
         else:
-            self.tstop = ct.DateTime(tstop).date
+            self.tstop = DateTime(tstop).date
             
         self.trendmonths = trendmonths
         self.numstddev = numstddev
         self.removeoutliers = removeoutliers
         self.maxoutlierstddev = maxoutlierstddev
         self.telem = self._getMonthlyTelemetry()
-        self.safetylimits = gretafun.getSafetyLimits(self.telem)
+        self.safetylimits = pylimmon.get_safety_limits(msid)
 
-        db = sqlite3.connect('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
+        # db = sqlite3.connect('/home/mdahmer/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
+        db = sqlite3.connect('/Users/wolf809/AXAFAUTO/G_LIMMON_Archive/glimmondb.sqlite3')
         cursor = db.cursor()
         cursor.execute('''SELECT a.msid, a.setkey, a.default_set, a.warning_low, 
                           a.caution_low, a.caution_high, a.warning_high FROM limits AS a 
-                          WHERE a.setkey = a.default_set AND a.msid = ?
+                          WHERE a.mlmenable=1 AND a.setkey = a.default_set AND a.msid = ?
                           AND a.modversion = (SELECT MAX(b.modversion) FROM limits AS b
                           WHERE a.msid = b.msid and a.setkey = b.setkey)''', [msid.lower(),])
-
         lims = cursor.fetchone()
         self.trendinglimits = {'warning_low':lims[3], 'caution_low':lims[4], 'caution_high':lims[5], 
                  'warning_high':lims[6]}
@@ -135,13 +140,23 @@ class MSIDTrend(object):
         dataset
         """
 
-        def returnmonthlyvals(datavals, numdays, keepmask):
-            datavals = datavals[keepmask]
-            returnvals = [np.m]
+        # def returnmonthlyvals(datavals, numdays, keepmask):
+        #     datavals = datavals[keepmask]
+        #     returnvals = [np.m]
 
-        
-        telem = fetch_eng.Msid(self.msid, self.tstart, self.tstop, 
-                               stat='daily')
+        if '_wide' in self.msid.lower():
+            msid = self.msid[:8]
+        else:
+            msid = self.msid
+        telem = fetch_eng.Msid(msid, self.tstart, self.tstop, stat='daily')
+
+        if '4oavobat' in msid.lower():
+            ind = telem.times > DateTime('2014:342:16:29:14.500').secs
+            telem.vals[ind] = 50 + 2 * (telem.vals[ind] - 50)
+            telem.maxes[ind] = 50 + 2 * (telem.maxes[ind] - 50)
+            telem.mins[ind] = 50 + 2 * (telem.mins[ind] - 50)
+            telem.means[ind] = 50 + 2 * (telem.means[ind] - 50)
+            print('Fixed 4oavobat calibration data in ska engineering archive!!!\n')
 
         if self.removeoutliers:
             keepmean = self.filteroutliers(telem.means)
@@ -239,7 +254,7 @@ class MSIDTrend(object):
         
         # Ensure the date is a date object (either a single or multiple
         # element object) and convert it to seconds
-        date = ct.DateTime(date).secs
+        date = DateTime(date).secs
 
         # Return the coeficients and associated standard deviation for the
         # requested linear curve fit.
@@ -323,8 +338,8 @@ class MSIDTrend(object):
                 
             # Calculate the date at which the modified threshold is reached
             seconds = (threshold - p[1]) / p[0]
-            if seconds < ct.DateTime('3000:001:00:00:00').secs:
-                crossdate = ct.DateTime(seconds).date
+            if seconds < DateTime('3000:001:00:00:00').secs:
+                crossdate = DateTime(seconds).date
 
             else:
                 crossdate = '3000:001:00:00:00'
