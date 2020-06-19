@@ -178,9 +178,9 @@ class plotdata(object):
             # Try to fetch from the engineering archive
             telem = fetch.Msid(msid, time1, time2, stat=stat)
             
-        except ValueError, e:
+        except ValueError as e:
 
-            print e
+            print(e)
 
             try:
                 if stat:

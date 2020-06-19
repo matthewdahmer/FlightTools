@@ -6,7 +6,8 @@ import re
 import subprocess as sp
 import sqlite3
 #import json
-import cPickle as pickle
+# import cPickle as pickle
+import pickle
 
 import Ska.engarchive.fetch_eng as fetch_eng
 from Chandra.Time import DateTime
@@ -25,7 +26,7 @@ def getGLIMMONLimits(MSID, glimmon=None):
     glimits = {}
 
     if MSID in glimmon.keys():
-        if glimmon[MSID].has_key('default'):
+        if 'default' in list(glimmon[MSID].keys()):
             gdefault = glimmon[MSID]['default']
         else:
             gdefault = 0

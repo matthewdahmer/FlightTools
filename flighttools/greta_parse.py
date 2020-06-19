@@ -41,7 +41,7 @@ def readGLIMMON(filename='/home/greta/AXAFSHARE/dec/G_LIMMON.dec'):
             elif words[0] == 'MLIMIT':
                 setnum = int(words[2])
                 glimmon[name].update({setnum:{}})
-                if glimmon[name].has_key('setkeys'):
+                if 'setkeys' in list(glimmon[name].keys()):
                     glimmon[name]['setkeys'].append(setnum)
                 else:
                     glimmon[name]['setkeys'] = [setnum,]
@@ -244,9 +244,9 @@ def process_limits_file(filename='limfile.txt'):
             # line in the limits file
             if currentval != 'none':
 
-                if limlog.has_key(msid):
+                if msid in list(limlog.keys()):
 
-                    if limlog[msid].has_key('firstviolation'):
+                    if 'firstviolation' in list(limlog[msid].keys()):
 
                         # if it is nominal, then increase the toggle count
                         if words[3] == 'NOMINAL':
@@ -285,7 +285,7 @@ def process_limits_file(filename='limfile.txt'):
                                                 limlog[msid]['max']])
                                 minval = np.min([float(currentval),
                                                 limlog[msid]['min']])
-                                if limlog[msid].has_key('worsttype'):
+                                if 'worsttype' in list(limlog[msid].keys()):
                                     if 'WARNING' not in \
                                                     limlog[msid]['worsttype']:
                                         limlog[msid]['worsttype'] = msg
@@ -359,8 +359,7 @@ def process_limits_file(filename='limfile.txt'):
                                              'is observed before violation'})
 
             else:
-                print 'Skipped this line in the limits file due to missing' + \
-                      ' value:\n%s\n'%line
+                print('Skipped this line in the limits file due to missing value:\n{}\n'.format(line))
 
     return limlog
 
@@ -406,7 +405,7 @@ def parsedecplot(decfile, removewidechars=True):
 
     #filename = 'Orbit_Plots/T_STT72_ISIM_ACIS.dec'
     infile = open(decfile,'rb')
-    body = infile.read()
+    body = infile.read().decode('utf-8')
     infile.close()
 
     decplots = {}

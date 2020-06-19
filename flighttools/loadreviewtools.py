@@ -30,27 +30,27 @@ class LoadReviewTools(object):
     def __init__(self, propschedule, reviewschedule=None):
 
         self.fileparts = {'psmc':'_1pdeaat_plot.txt',
-                          'minusyz':'_tephin_plot.txt',
                           'dpa':'_dpa_plot.txt',
+                          'dea':'_dea_plot.txt',
                           'tank':'_pftank2t_plot.txt',
                           'aca':'_aca_plot.txt',
                           'mups':'_mups_valves_plot.txt',
-			  'oba':'_4rt700t_plot.txt'}
+                  			  'oba':'_4rt700t_plot.txt',
+                          'cc':'_tcylaft6_plot.txt'}
 
         self.headerinfo = {'psmc':{'columns':3,
                                    'names':['Time', '1PDEAAT', 'PIN1AT'],
                                    'title':'ACIS: PSMC'},
-                           'minusyz':{'columns':8,
-                                     'names':['Time','TEPHIN', 'TCYLAFT6',
-                                              'TMZP_MY', 'PMTANK3T', 
-                                              'TCYLAFT6_0', 'PMTANK3T_0',
-                                              'Pitch', 'Roll'],
-                                     'title':'Spacecraft: Minus-Z'},
-                           'dpa':{'columns':9,
-                                  'names':['Time','1DPAMZT', 'Pitch', 'Roll',
+                           'dpa':{'columns':10,
+                                  'names':['Time','1DPAMZT', 'Pitch', 'Roll', 'Sun_Body_Y',
                                            'SimPos', 'FEP_Count', 'CCD_Count',
                                            'Vid_Board', 'Clocking'],
                                   'title':'ACIS: DPA'},
+                           'dea':{'columns':10,
+                                  'names':['Time','1DEAMZT', 'Pitch', 'Roll', 'Sun_Body_Y',
+                                           'SimPos', 'FEP_Count', 'CCD_Count',
+                                           'Vid_Board', 'Clocking'],
+                                  'title':'ACIS: DEA'},
                            'tank':{'columns':6,
                                    'names':['Time', 'PFTANK2T', 'PFTANKIP',
                                             'PF0TANK2T', 'Pitch', 'Roll'],
@@ -58,26 +58,28 @@ class LoadReviewTools(object):
                            'aca':{'columns':5,
                                    'names':['Time', 'AACCCDPT', 'ACA0',
                                             'Pitch', 'Roll'],
-                                   'title':'Spacecraft: Fuel Tank'},
+                                   'title':'Spacecraft: Aspect Camera'},
                            'mups':{'columns':5,
-                                   'names':['Time', 'PM1THV1T',
-                                            'PM1THV1T Settle', 'PM2THV1T',
-                                            'PM2THV1T Settle'],
+                                   'names':['Time', 'PM1THV2T', 'PM1THV2T_0',
+                                            'PM2THV1T', 'PM2THV1T_0',],
                                    'title':'Spacecraft: MUPS Valves'},
+                           'cc':{'columns':5,
+                                   'names':['Time', 'TCYLAFT6', 'TCYLAFT6_0',
+                                            'Pitch', 'Roll'],
+                                   'title':'Spacecraft: Central Cylinder'},
                            'oba':{'columns':5,
                                    'names':['Time', '4RT700T',
                                             '4RT700T_0', 'Pitch',
                                             'Roll'],
                                    'title':'OBA: Forward Bulkhead'}}
         
-        self.propnames = ['TEPHIN', 'PM1THV1T', 'PM2THV1T','1PDEAAT', 
-                          'PIN1AT', 'TCYLAFT6', 'TCYLAFT6_0', 'TMZP_MY', 
-                          'PMTANK3T', 'PMTANK3T_0', '1DPAMZT', 'PFTANK2T',
+        self.propnames = ['PM1THV2T', 'PM1THV2T_0', 'PM2THV1T', 'PM2THV1T_0','1PDEAAT', 
+                          'PIN1AT', 'TCYLAFT6', 'TCYLAFT6_0', '1DPAMZT', 'PFTANK2T',
                           'PF0TANK2T', 'SimPos', 'chips', 'FEP_Count',
                           'CCD_Count', 'Vid_Board', 'Clocking', 'AACCCDPT',
-                          'ACA0', '4RT700T', '4RT700T_0']
+                          'ACA0', '4RT700T', '4RT700T_0', '1DEAMZT', 'Roll', 'Sun_Body_Y']
         
-        self.plotorder = ['minusyz', 'oba', 'tank', 'mups', 'psmc', 'dpa', 'aca']
+        self.plotorder = ['cc', 'oba', 'tank', 'mups', 'psmc', 'dpa', 'dea', 'aca']
 
         self.propschedule = propschedule
         self.reviewschedule = reviewschedule

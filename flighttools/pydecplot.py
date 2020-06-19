@@ -40,7 +40,7 @@ class plotdec(object):
         self.decplots = gretafun.parsedecplot(self.decfile)
         self.colors = self._importcolors()
         self.plotltt = plotltt
-        self.ltttimespan = 60 * 24 * 3600
+        self.ltttimespan = 365 * 24 * 3600
         self.defaultcolors = ['RED', 'YELLOW', 'GREEN', 'AQUA', 'PINK', 'WHEAT',
                               'GREY', 'BROWN', 'BLUE', 'BLUEVIOLET', 'CYAN',
                               'TURQUIOSE', 'MAGENTA', 'SALMON', 'WHITE']
@@ -154,7 +154,7 @@ class plotdec(object):
         traceheight = 0.007 # Amount to add for each trace
 
         # Step through each plot
-        for p in self.decplots['plots'].keys():
+        for p in list(self.decplots['plots'].keys()):
 
             # if the binary plot key doesn't have a NoneType
             if self.decplots['plots'][p]['PBILEVELS']:
@@ -192,14 +192,17 @@ class plotdec(object):
                                comments=None)
         colordict = {}
         
-        for (name,hex,r,g,b) in colorarray:
+        for (name,hexval,r,g,b) in colorarray:
+
+            name = name.decode('utf-8')
+            hexval = hexval.decode('utf-8')
             
             if r > 1 or g > 1 or b > 1:
                 r = r/255.0
                 g = g/255.0
                 b = b/255.0
                 
-            colordict[name] = {'hex':hex, 'rgb':[r,g,b]}
+            colordict[name] = {'hex':hexval, 'rgb':[r,g,b]}
 
         return colordict
     
@@ -207,7 +210,7 @@ class plotdec(object):
     def _getcolor(self, tcolor=None, tracenum=0):
         if isinstance(tcolor, type(None)):
             tcolor = self.defaultcolors[tracenum]
-        elif tcolor.lower() in self.colors.keys():
+        elif tcolor.lower() in list(self.colors.keys()):
             tcolor = self.colors[tcolor.lower()]['rgb']
         else:
             tcolor = self.defaultcolors[tracenum]
@@ -219,7 +222,7 @@ class plotdec(object):
         #ax.yaxis.set_minor_locator(AutoMinorLocator())
         #ax.tick_params(axis='both', which='minor', length=6, color=[0.8, 0.8, 0.8])
         ax.grid(b=True, which='both', color=self.plotinfo['fgcolor'])
-        ax.set_axis_bgcolor(self.plotinfo['bgcolor'])
+        ax.set_facecolor(self.plotinfo['bgcolor'])
         ax.set_axisbelow(True)
 
     
@@ -342,7 +345,7 @@ class plotdec(object):
 
         # Find longest msid name string
         longest = 9 # minimum width
-        for stat in tracestats.keys():
+        for stat in list(tracestats.keys()):
             longest = np.max((longest, len(tracestats[stat].name[4:])))
 
         msidpad = longest + 1
@@ -355,10 +358,10 @@ class plotdec(object):
                                              'Period')
         text = text + '\n'
 
-        for name in tracestats.keys():
+        for name in list(tracestats.keys()):
             if name[:3] == 'stt':
                 if 'glimmonlimits' in tracestats[name].__dict__.keys():
-                    if tracestats[name].glimmonlimits.has_key('caution_low'):
+                    if 'caution_low' in list(tracestats[name].glimmonlimits.keys()):
                         cautionlow = str(tracestats[name].glimmonlimits\
                                          ['caution_low'])
                         cautionhigh = str(tracestats[name].glimmonlimits\
@@ -377,7 +380,7 @@ class plotdec(object):
                 # manually calculated, then the data is not stored in the maxes,
                 # instead it is merely stored in the yeartelem.plotdata attribute.
                 lttname = 'ltt' + name[3:]
-                if lttname in tracestats.keys():
+                if lttname in list(tracestats.keys()):
                     yearmax = str('%10.5f'%tracestats[lttname].telemmax)
                 else:
                     yearmax = 'None'
@@ -460,7 +463,7 @@ class plotdec(object):
 
 
         tracestats = {}
-        for tracenum in self.decplots['plots'][plotnum]['traces'].keys():
+        for tracenum in list(self.decplots['plots'][plotnum]['traces'].keys()):
 
             telem, tracedata = self._getplotdata(plotnum, tracenum)
 
@@ -518,7 +521,7 @@ class plotdec(object):
                         position=[0.5, 1.01])
 
         tracestats = {}
-        for tracenum in self.decplots['plots'][plotnum]['traces'].keys():
+        for tracenum in list(self.decplots['plots'][plotnum]['traces'].keys()):
 
             tstat = self.decplots['plots'][plotnum]['traces'][tracenum]['TSTAT']
             
@@ -549,9 +552,9 @@ class plotdec(object):
                     plotdata = telem.plotdata
                 else:
                     # Generate the trace data from the mins and maxes
-                    plottimes = np.array(zip(telem.times, telem.times + 1))
+                    plottimes = np.array(list(zip(telem.times, telem.times + 1)))
                     plottimes = plottimes.flatten()     
-                    plotdata = np.array(zip(telem.mins, telem.maxes))
+                    plotdata = np.array(list(zip(telem.mins, telem.maxes)))
                     plotdata = plotdata.flatten()
 
                 lttax.plot(plottimes, plotdata, color=tcolor, 
@@ -590,7 +593,7 @@ class plotdec(object):
         ax = self.axlist[plotnum]
 
         msidkey = {}
-        for tbtracenum in self.decplots['plots'][plotnum]['tbtraces'].keys():
+        for tbtracenum in list(self.decplots['plots'][plotnum]['tbtraces'].keys()):
 
             # Fetch telemetry and return name of MSID/Data
             tbtelem, tbtracedata = self._getplotdata(plotnum, tbtracenum, 
@@ -628,7 +631,7 @@ class plotdec(object):
         bax.set_xlim(tbtracedata.mintime - 360, tbtracedata.maxtime + 360)
 
         # Configure binary trace y axis
-        ymaxlim =  np.max(msidkey.keys()) * 2
+        ymaxlim =  np.max(list(msidkey.keys())) * 2
         ytick = range(0, ymaxlim + 2, 2)
         ylab = [''] * len(ytick)
         for n in msidkey.keys():
@@ -701,7 +704,7 @@ class plotdec(object):
         #---------------------------------------------------------------------
         # Main loop for generating all plots 
 
-        for plotnum in np.sort(self.decplots['plots'].keys()):
+        for plotnum in np.sort(list(self.decplots['plots'].keys())):
 
             print('plot %d = %s'%(plotnum,
                                   self.decplots['plots'][plotnum]['PTITLE']))
@@ -709,7 +712,7 @@ class plotdec(object):
 
             # Create Main Axes
             plotloc = self.plotinfo['location'][plotnum]
-            self.axlist[plotnum] = fig.add_axes(plotloc, axisbg=bgcolor)
+            self.axlist[plotnum] = fig.add_axes(plotloc, facecolor=bgcolor)
 
 
             # Create Primary Plots
@@ -722,7 +725,7 @@ class plotdec(object):
 
             if self.plotltt:
                 lttplotloc = self.plotinfo['lttslocation'][plotnum]
-                self.lttaxlist[plotnum] = fig.add_axes(lttplotloc, axisbg=bgcolor)
+                self.lttaxlist[plotnum] = fig.add_axes(lttplotloc, facecolor=bgcolor)
                 
                 ltttracestats = self._plotlttaxis(plotnum)
 
